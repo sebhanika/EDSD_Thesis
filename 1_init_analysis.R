@@ -14,6 +14,7 @@ library(dbplyr)
 library(RPostgreSQL)
 require(RPostgreSQL)
 library(stringr)
+library(summarytools)
 
 
 options(scipen=999) # disable scientific notation 
@@ -100,7 +101,17 @@ muni_ref <- tbl_muni_ref %>%
 rm(tbl_arbl, tbl_econ_ao, tbl_marg_emp, tbl_muni_ref,
    tbl_oldsvp_ao, tbl_oldsvp_marg, tbl_pop, tbl_popage, tbl_svp_ao, tbl_svp_wo)
 
-# data prep ---------------------------------------------------------------
+
+
+
+# overview statistics -----------------------------------------------------
+
+
+# here to calcualte basic statics
+# focus on missing values
+
+
+
 
 
 

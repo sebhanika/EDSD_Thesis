@@ -27,6 +27,24 @@ count_NA <- function(dataframe){
 }
 
 
+
+# summariy function
+try1 <- function(dataframe){
+  dataframe %>% 
+  summarize(across(.cols = where(is.numeric),
+                   .names = "{.col}__{.fn}",
+                   .fns = list(nmiss = ~sum(is.na(.))/length(.)*100,
+                               mean = ~mean(.x, na.rm = TRUE),
+                               min = ~min(.x, na.rm = TRUE),
+                               max = ~max(.x, na.rm = TRUE),
+                               sd = ~sd(.x, na.rm = TRUE)
+                   )
+  )
+  ) 
+
+}
+
+
 # apply function across all dataframes and change names
 output_dfs <- function(listdf, func){
   results2 <- sapply(listdf, func, USE.NAMES = TRUE)

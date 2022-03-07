@@ -108,7 +108,9 @@ rm(tbl_arbl, tbl_econ_ao, tbl_marg_emp, tbl_muni_ref,
 # here to calculate basic statics
 # focus on missing values
 
+# source functions from functions Module
 source("0_functions_module.R")
+
 
 
 list_dfs <- listn(pop_age, arbl, econ_ao, marg_emp, svp_ao,
@@ -116,7 +118,32 @@ list_dfs <- listn(pop_age, arbl, econ_ao, marg_emp, svp_ao,
 
 result_list <- output_dfs(listdf = list_dfs , func = count_NA)
 
+
+try_list <- output_dfs(listdf = list_dfs , func = try1)
+
+
+
 # output list of
 list2env(result_list, .GlobalEnv)
 
+
+### trying stuff out 
+
+
+# alternative function
+
+try1 <- oldsvp_ao %>% 
+  summarize(across(.cols = where(is.numeric),
+                   .names = "{.col}__{.fn}",
+                   .fns = list(nmiss = ~sum(is.na(.))/length(.)*100,
+                               mean = ~mean(.x, na.rm = TRUE),
+                               min = ~min(.x, na.rm = TRUE),
+                               max = ~max(.x, na.rm = TRUE),
+                               sd = ~sd(.x, na.rm = TRUE)
+                               )
+                   )
+            ) %>%
+  pivot_longer(everything(), 
+               names_to = c("measure", "variable"),
+               names_sep = "__")
 

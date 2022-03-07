@@ -9,7 +9,6 @@
 
 
 library(tidyverse)
-library(dplyr)
 library(dbplyr)
 library(RPostgreSQL)
 require(RPostgreSQL)
@@ -45,8 +44,8 @@ tbl_pop <- tbl(con, "gs2019_pop_muni")
 
 #population age data
 pop_age <- tbl_popage %>%
-  collect() %>%
-  mutate(across(where(is.character), str_trim))
+  collect() %>% #is necessary to create table
+  mutate(across(where(is.character), str_trim)) # deletes whitespace
 
 #unemployment data
 arbl <- tbl_arbl %>%
@@ -73,10 +72,10 @@ svp_wo <- tbl_svp_wo %>%
   collect() %>% 
   mutate(across(where(is.character), str_trim))
 
-# old age employment am arbeitsort, imputated
+# old age employees at the place of employment
 oldsvp_ao <- tbl_oldsvp_ao %>% 
-  collect() %>% #is necessary to create table
-  mutate(across(where(is.character), str_trim)) # deletes whitespace
+  collect() %>% 
+  mutate(across(where(is.character), str_trim)) 
 
 # population table
 pop <- tbl_pop %>%
@@ -85,12 +84,12 @@ pop <- tbl_pop %>%
   rename(pop_total = total) %>%
   filter(year %in% 2009:2019)
 
-# old age employment am arbeitsort, imputated
+# marginal old age employees at the place of employment
 oldsvp_marg <- tbl_oldsvp_marg %>% 
-  collect() %>% #is necessary to create table
-  mutate(across(where(is.character), str_trim)) # deletes whitespace
+  collect() %>%
+  mutate(across(where(is.character), str_trim))
 
-# gemeinde referenz tabelle regiostar7, imputated
+# Municipal reference table/ regiostar/
 muni_ref <- tbl_muni_ref %>%
   select(muni_key, muni_name, regiostar7) %>%
   collect() %>%
@@ -99,22 +98,46 @@ muni_ref <- tbl_muni_ref %>%
 
 # removing tbl objects from environment
 rm(tbl_arbl, tbl_econ_ao, tbl_marg_emp, tbl_muni_ref,
-   tbl_oldsvp_ao, tbl_oldsvp_marg, tbl_pop, tbl_popage, tbl_svp_ao, tbl_svp_wo)
-
-
+   tbl_oldsvp_ao, tbl_oldsvp_marg, tbl_pop, tbl_popage,
+   tbl_svp_ao, tbl_svp_wo)
 
 
 # overview statistics -----------------------------------------------------
 
 
-# here to calcualte basic statics
+# here to calculate basic statics
 # focus on missing values
 
+# create named list of dataframes 
+listn <- function(...) {
+  objs <- as.list(substitute(list(...)))[-1L]
+  nm <- as.character(objs)
+  v <- lapply(nm,get)
+  names(v) <- nm
+  return(v)
+}
+
+# function for counting NAs in each datframe
+count_NA <- function(dataframe){
+  counts <- dataframe %>%
+    summarize(across(everything(), ~sum(is.na(.))/length(.)*100))
+}
 
 
+# apply function across all dataframes and change names
+output_dfs <- function(listdf, func){
+  results2 <- sapply(listdf, func, USE.NAMES = TRUE)
+  d <- names(results2)
+  names(results2) <- paste("NA", d, sep="_")
+  return(results2)
+}
 
 
+list_dfs <- listn(pop_age, arbl, econ_ao, marg_emp, svp_ao,
+                  svp_wo, oldsvp_ao, pop, oldsvp_marg,  muni_ref)
 
+result_list <- output_dfs(listdf = list_dfs , func = count_NA)
 
+list2env(result_list, .GlobalEnv)
 
 

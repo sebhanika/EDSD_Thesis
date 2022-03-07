@@ -108,29 +108,7 @@ rm(tbl_arbl, tbl_econ_ao, tbl_marg_emp, tbl_muni_ref,
 # here to calculate basic statics
 # focus on missing values
 
-# create named list of dataframes 
-listn <- function(...) {
-  objs <- as.list(substitute(list(...)))[-1L]
-  nm <- as.character(objs)
-  v <- lapply(nm,get)
-  names(v) <- nm
-  return(v)
-}
-
-# function for counting NAs in each datframe
-count_NA <- function(dataframe){
-  counts <- dataframe %>%
-    summarize(across(everything(), ~sum(is.na(.))/length(.)*100))
-}
-
-
-# apply function across all dataframes and change names
-output_dfs <- function(listdf, func){
-  results2 <- sapply(listdf, func, USE.NAMES = TRUE)
-  d <- names(results2)
-  names(results2) <- paste("NA", d, sep="_")
-  return(results2)
-}
+source("0_functions_module.R")
 
 
 list_dfs <- listn(pop_age, arbl, econ_ao, marg_emp, svp_ao,
@@ -138,6 +116,7 @@ list_dfs <- listn(pop_age, arbl, econ_ao, marg_emp, svp_ao,
 
 result_list <- output_dfs(listdf = list_dfs , func = count_NA)
 
+# output list of
 list2env(result_list, .GlobalEnv)
 
 

@@ -5,8 +5,8 @@
 # Date: 25/02/2022
 
 
-# libraries and set up ----------------------------------------------------
 
+# Libraries ---------------------------------------------------------------
 
 library(tidyverse)
 library(dbplyr)
@@ -19,12 +19,10 @@ library(summarytools)
 source("0_functions_module.R")
 
 options(scipen=999) # disable scientific notation 
-filter <- dplyr::filter    #EDIT
-select <- dplyr::select
-group.colors <- c(w = "grey80", m = "red3") # sets groups colors for male female 
 
 
-########## Database and loading data  ##########
+# Database connection and query -------------------------------------------
+
 pw <- {"Thes1s_EDSD?"} 
 drv <- dbDriver("PostgreSQL") # loads the PostgreSQL driver
 # creates a connection to the postgres database
@@ -117,13 +115,6 @@ list_dfs <- listn(pop_age, arbl, econ_ao, marg_emp, svp_ao,
 # summary table
 summary_dfs <- output_dfs(listdf = list_dfs , func = summary_func)
 
-# output list of
-list2env(summary_dfs, .GlobalEnv)
-
-
-
-
-
 
 
 
@@ -135,20 +126,33 @@ list2env(summary_dfs, .GlobalEnv)
 
 ### trying stuff out 
 
+library(missForest)
+
+
+
+# getting rid of character colums for imputation 
+imp_data <- total_data %>%
+  select(-c(1,2))
+
+# changing format for imputation
+imp_data <- as.data.frame(imp_data)    
+
+# performing imputation
+imp_try <- missForest(xmis = imp_data)
+
+# extracting data
+data_final <- imp_try$ximp 
+
+# extracting the errors
+errors_imp <- imp_try$OOBerror
+
+# rejoining country names
+data_final$Country <- total_data$Country
+data_final$Country_Code <- total_data$Country.Code
+
+#final dataframe
+data_final <- data_final %>%
+  relocate(c("Country", "Country_Code"), .before = LE_female)
+
 
 # alternative function
-
-try1 <- oldsvp_ao %>% 
-  summarize(across(.cols = where(is.numeric),
-                   .names = "{.col}__{.fn}",
-                   .fns = list(nmiss = ~sum(is.na(.))/length(.)*100,
-                               mean = ~mean(.x, na.rm = TRUE),
-                               min = ~min(.x, na.rm = TRUE),
-                               max = ~max(.x, na.rm = TRUE),
-                               sd = ~sd(.x, na.rm = TRUE)
-                               ))) %>%
-  pivot_longer(everything(), 
-               names_to = c("variable", "measure"),
-               names_sep = "__") %>% 
-  pivot_wider(names_from = "measure", values_from = "value")
-

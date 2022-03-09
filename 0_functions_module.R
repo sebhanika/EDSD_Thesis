@@ -7,9 +7,13 @@
 # This file contains self-defined functions used for my EDSD thesis
 
 
+# small functions that help or avoid masking errors
+filter <- dplyr::filter    #EDIT
+select <- dplyr::select
+`%!in%` = Negate(`%in%`) # function needed for later 
+
 
 # Functions data exploration ----------------------------------------------
-
 
 # these three functions are constructed to take a list of dataframes:
 # and create a named list of dataframes then (1) 
@@ -28,32 +32,45 @@ listn <- function(...) {
 }
 
 
-# (2) summary statistsics function function
+# (2) summary statistics function function
 summary_func <- function(dataframe){
+  
+  # calculate summary stats
   temp_list <- dataframe %>% 
     summarize(across(.cols = where(is.numeric),
                      .names = "{.col}__{.fn}", #double for pivoting later
-                     .fns = list(nmiss = ~sum(is.na(.))/length(.)*100,
+                     .fns = list(nmiss = ~sum(is.na(.))/length(.)*100, # %of NAs
                                  mean = ~mean(.x, na.rm = TRUE),
                                  min = ~min(.x, na.rm = TRUE),
                                  max = ~max(.x, na.rm = TRUE),
                                  sd = ~sd(.x, na.rm = TRUE)
                      ))) %>%
+    
+    # make dataframe in right format
     pivot_longer(everything(), 
                  names_to = c("variable", "measure"),
                  names_sep = "__") %>% # now it is too long
-    pivot_wider(names_from = "measure", values_from = "value")
+    pivot_wider(names_from = "measure", 
+                values_from = "value")
 }
 
 
 # 3() apply summary stat function across all dataframes and rowbind
 output_dfs <- function(listdf, func){
-  results2 <- sapply(listdf, func, USE.NAMES = TRUE, simplify = F)
+  
+  #calc summary stat and pivot each dataframe
+  results2 <- sapply(listdf,
+                     func, 
+                     USE.NAMES = TRUE, 
+                     simplify = FALSE) # simplify needed for right format
 
-  summary_df <- bind_rows(results2, .id = "colum_label")
+  # rowbind all dataframes and clean df
+  summary_df <- bind_rows(results2, .id = "colum_label") %>% 
+    filter(variable %!in% c("year", "id","regiostar7"))  %>% # remove unwanted variables
+    mutate(across(.cols =where(is.numeric),
+                  .fns = ~round(., digits = 3))) # round all numerics
   
   return(summary_df)
-  
   
 }
 

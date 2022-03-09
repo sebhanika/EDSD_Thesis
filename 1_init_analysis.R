@@ -126,33 +126,5 @@ summary_dfs <- output_dfs(listdf = list_dfs , func = summary_func)
 
 ### trying stuff out 
 
-library(missForest)
-
-
-
-# getting rid of character colums for imputation 
-imp_data <- total_data %>%
-  select(-c(1,2))
-
-# changing format for imputation
-imp_data <- as.data.frame(imp_data)    
-
-# performing imputation
-imp_try <- missForest(xmis = imp_data)
-
-# extracting data
-data_final <- imp_try$ximp 
-
-# extracting the errors
-errors_imp <- imp_try$OOBerror
-
-# rejoining country names
-data_final$Country <- total_data$Country
-data_final$Country_Code <- total_data$Country.Code
-
-#final dataframe
-data_final <- data_final %>%
-  relocate(c("Country", "Country_Code"), .before = LE_female)
-
 
 # alternative function

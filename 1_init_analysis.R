@@ -15,6 +15,8 @@ require(RPostgreSQL)
 library(stringr)
 library(summarytools)
 
+# source functions from functions Module
+source("0_functions_module.R")
 
 options(scipen=999) # disable scientific notation 
 filter <- dplyr::filter    #EDIT
@@ -104,27 +106,31 @@ rm(tbl_arbl, tbl_econ_ao, tbl_marg_emp, tbl_muni_ref,
 
 # overview statistics -----------------------------------------------------
 
-
 # here to calculate basic statics
 # focus on missing values
-
-# source functions from functions Module
-source("0_functions_module.R")
 
 
 
 list_dfs <- listn(pop_age, arbl, econ_ao, marg_emp, svp_ao,
                   svp_wo, oldsvp_ao, pop, oldsvp_marg,  muni_ref)
 
-result_list <- output_dfs(listdf = list_dfs , func = count_NA)
-
-
-try_list <- output_dfs(listdf = list_dfs , func = try1)
-
-
+# summary table
+summary_dfs <- output_dfs(listdf = list_dfs , func = summary_func)
 
 # output list of
-list2env(result_list, .GlobalEnv)
+list2env(summary_dfs, .GlobalEnv)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 ### trying stuff out 
@@ -140,10 +146,9 @@ try1 <- oldsvp_ao %>%
                                min = ~min(.x, na.rm = TRUE),
                                max = ~max(.x, na.rm = TRUE),
                                sd = ~sd(.x, na.rm = TRUE)
-                               )
-                   )
-            ) %>%
+                               ))) %>%
   pivot_longer(everything(), 
-               names_to = c("measure", "variable"),
-               names_sep = "__")
+               names_to = c("variable", "measure"),
+               names_sep = "__") %>% 
+  pivot_wider(names_from = "measure", values_from = "value")
 

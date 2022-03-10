@@ -66,11 +66,13 @@ output_dfs <- function(listdf, func){
 
   # rowbind all dataframes and clean df
   summary_df <- bind_rows(results2, .id = "colum_label") %>% 
-    filter(variable %!in% c("year", "id","regiostar7"))  %>% # remove unwanted variables
+    filter(variable %!in% c("year", "id"))  %>% # remove unwanted variables
     mutate(across(.cols =where(is.numeric),
                   .fns = ~round(., digits = 3))) # round all numerics
   
   return(summary_df)
   
 }
+
+
 

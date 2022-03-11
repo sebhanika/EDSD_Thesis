@@ -13,6 +13,8 @@ library(dbplyr)
 library(RPostgreSQL)
 require(RPostgreSQL)
 library(stringr)
+library(RColorBrewer)
+library(knitr)
 
 # source functions from functions Module
 source("0_functions_module.R")
@@ -56,11 +58,6 @@ econ_ao <- tbl_econ_ao %>%
   collect() %>% 
   mutate(across(where(is.character), str_trim))
 
-# Marginal Employment data
-marg_emp <- tbl_marg_emp %>% 
-  collect() %>% 
-  mutate(across(where(is.character), str_trim))
-
 # Employees at place of work data
 svp_ao <- tbl_svp_ao %>% 
   collect() %>% 
@@ -92,8 +89,21 @@ oldsvp_marg <- tbl_oldsvp_marg %>%
 muni_ref <- tbl_muni_ref %>%
   select(muni_key, muni_name, regiostar7) %>%
   collect() %>%
-  mutate(across(where(is.character), str_trim)) %>%
-  distinct(muni_key, muni_name, .keep_all = TRUE) #remove duplicate row
+  mutate(across(where(is.character), str_trim)) %>% 
+  mutate(regiostar7 = if_else(regiostar7 == 71, 72, regiostar7), # merge two urban categories
+         gen_rs7 = factor(x = case_when( # assign terms to rs7 values
+           regiostar7 == 72 ~ 'Large City, urban',
+           regiostar7 == 73 ~ 'Medium-sized city, urban',
+           regiostar7 == 74 ~ 'Small town, urban',
+           regiostar7 == 75 ~ 'Central City, rural',
+           regiostar7 == 76 ~ 'Medium-sized city, rural',
+           regiostar7 == 77 ~ 'Small town, rural'),
+                          levels = c('Large City, urban', # set factor levels
+                                     'Medium-sized city, urban',
+                                     'Small town, urban',
+                                     'Central City, rural',
+                                     'Medium-sized city, rural', 
+                                     'Small town, rural')))
 
 # removing tbl objects from environment
 rm(list = ls(pattern = "^tbl"))
@@ -126,25 +136,18 @@ list_dfs_filt <- sapply(list_dfs, filter, id %in% pop_new$id)
 summary_dfs_filt <- output_dfs(listdf = list_dfs_filt , func = summary_func)
 
 
-# calculate population that was excluded
-pop_filter <- pop_new %>% 
-  filter(year == 2019) %>% 
-  summarize(pop_tot = sum(pop_total)) %>% 
-  pull()
 
-pop_complete <- pop %>% 
-  filter(year == 2019) %>% 
-  summarize(pop_tot = sum(pop_total)) %>% 
-  pull()
+
+kable(summary_dfs_filt, "latex")
 
 
 
-# summary stats by regiostar7 ---------------------------------------------
+# Summary stats regular employees by regiostar7 ---------------------------
 
-summary_regio <- oldsvp_ao %>% 
-  left_join(select(muni_ref, c("muni_key", "regiostar7")), by = "muni_key") %>% 
+summary_regio_reg <- oldsvp_ao %>% 
+  left_join(select(muni_ref, c("muni_key", "gen_rs7")), by = "muni_key") %>% 
   filter(id %in% pop_new$id) %>% 
-  group_by(regiostar7) %>% 
+  group_by(gen_rs7) %>% 
   summarize(across(.cols = where(is.numeric),
                    .names = "{.col}_{.fn}", #double for pivoting later
                    .fns = list(nmiss = ~sum(is.na(.))/length(.)*100, # %of NAs
@@ -153,28 +156,106 @@ summary_regio <- oldsvp_ao %>%
                                max = ~max(.x, na.rm = TRUE),
                                sd = ~sd(.x, na.rm = TRUE)
                    ))) %>% 
-  pivot_longer(cols = -c(regiostar7), 
+  pivot_longer(cols = -c(gen_rs7), 
                names_to = c( "gender","variable", "measure"),
                names_sep = "_") %>% 
-  drop_na()
+  drop_na() %>% 
+  mutate(gender = factor(str_to_title(gender), 
+                         levels = c("Total", "Men", "Women")))
 
 
-
-try_plot1 <-  summary_regio %>% 
+# plot percentage of missing values by region and 
+p_NA_oldsvpao_regio <-  summary_regio_reg %>% 
   filter(measure == "nmiss") %>% 
   ggplot(aes(x=variable, y=value, fill = gender)) +
   geom_bar(stat = "identity", position = "dodge") +
-  facet_wrap(.~regiostar7)
+  facet_wrap(.~gen_rs7) + 
+  labs(x = "Variable",
+       y = "Missing values (%)",
+       title = "Missing values for employment data by spatial class",
+       subtitle = "Regular employment data") +
+  scale_fill_brewer(palette = "Set2", 
+                    labels = c("Total", "Men", "Women")) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
-try_plot1
+p_NA_oldsvpao_regio
 
 
-
-try_plot2 <-  summary_regio %>% 
+p_NA_oldsvpao_age <-  summary_regio_reg %>% 
   filter(measure == "nmiss") %>% 
-  ggplot(aes(x=regiostar7, y=value, fill = gender)) +
+  ggplot(aes(x=gen_rs7, y=value, fill = gender)) +
   geom_bar(stat = "identity", position = "dodge") +
-  facet_wrap(.~variable)
+  facet_wrap(.~variable) + 
+  labs(x = "Spatial class",
+       y = "Missing values (%)",
+       title = "Missing values for employment data by age group",
+       subtitle = "Regular employment data") +
+ scale_fill_brewer(palette = "Set2", 
+                   labels = c("Total", "Men", "Women")) +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
 
-try_plot2
+p_NA_oldsvpao_age
+
+
+
+
+# Summary stats marginal employees by regiostar7 --------------------------
+
+
+summary_regio_marg <- oldsvp_marg %>% 
+  left_join(select(muni_ref, c("muni_key", "gen_rs7")), by = "muni_key") %>% 
+  filter(id %in% pop_new$id) %>% 
+  group_by(gen_rs7) %>% 
+  summarize(across(.cols = where(is.numeric),
+                   .names = "{.col}_{.fn}", #double for pivoting later
+                   .fns = list(nmiss = ~sum(is.na(.))/length(.)*100, # %of NAs
+                               mean = ~mean(.x, na.rm = TRUE),
+                               min = ~min(.x, na.rm = TRUE),
+                               max = ~max(.x, na.rm = TRUE),
+                               sd = ~sd(.x, na.rm = TRUE)
+                   )))%>% 
+  pivot_longer(cols = -c(gen_rs7), 
+               names_to = c( "gender","variable", "del", "measure"),
+               names_sep = "_") %>% 
+  drop_na() %>% 
+  mutate(gender = factor(str_to_title(gender), 
+                         levels = c("Total", "Men", "Women")))
+
+
+# plot percentage of missing values by region and 
+p_NA_oldsvp_marg_regio <-  summary_regio_marg %>% 
+  filter(measure == "nmiss") %>% 
+  ggplot(aes(x=variable, y=value, fill = gender)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  facet_wrap(.~gen_rs7) + 
+  labs(x = "Variable",
+       y = "Missing values (%)",
+       title = "Missing values for employment data by spatial class",
+       subtitle = "Marginal employment data") +
+  scale_fill_brewer(palette = "Set2", 
+                    labels = c("Total", "Men", "Women")) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+p_NA_oldsvp_marg_regio
+
+
+
+
+p_NA_oldsvp_marg_age <-  summary_regio_marg %>% 
+  filter(measure == "nmiss") %>% 
+  ggplot(aes(x=gen_rs7, y=value, fill = gender)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  facet_wrap(.~variable) + 
+  labs(x = "Spatial class",
+       y = "Missing values (%)",
+       title = "Missing values for employment data by age group",
+       subtitle = "Marginal employment data") +
+  scale_fill_brewer(palette = "Set2", 
+                    labels = c("Total", "Men", "Women")) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+
+p_NA_oldsvp_marg_age
+
+
+
 

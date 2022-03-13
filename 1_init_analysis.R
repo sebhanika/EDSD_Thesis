@@ -109,16 +109,6 @@ muni_ref <- tbl_muni_ref %>%
 rm(list = ls(pattern = "^tbl"))
 
 
-# overview stats all observations -----------------------------------------
-
-# named list of dataframes
-list_dfs <- listn(pop_age, arbl, econ_ao, marg_emp, svp_ao,
-                  svp_wo, oldsvp_ao, pop, oldsvp_marg)
-
-# summary table
-summary_dfs <- output_dfs(listdf = list_dfs , func = summary_func)
-
-
 # Overview stats towns pop > 500 ------------------------------------------
 
 # removing small data, only lose about 0.9% of total German population
@@ -135,12 +125,8 @@ list_dfs_filt <- sapply(list_dfs, filter, id %in% pop_new$id)
 # apply summary function
 summary_dfs_filt <- output_dfs(listdf = list_dfs_filt , func = summary_func)
 
-
-
-
-kable(summary_dfs_filt, "latex")
-
-
+# output to latex format for report
+#kable(summary_dfs_filt, "latex")
 
 # Summary stats regular employees by regiostar7 ---------------------------
 
@@ -161,7 +147,16 @@ summary_regio_reg <- oldsvp_ao %>%
                names_sep = "_") %>% 
   drop_na() %>% 
   mutate(gender = factor(str_to_title(gender), 
-                         levels = c("Total", "Men", "Women")))
+                         levels = c("Total", "Men", "Women"))) %>% 
+  mutate(variable = factor(x = case_when( # recoding of variable names
+           variable == "total" ~ "Total",
+           variable == "below25" ~ "below 25",
+           variable == "25to55" ~ "25 to 55",
+           variable == "55to65" ~  "55 to 65", 
+           variable == "65older" ~  "65+",
+           variable == "65olderstand" ~ "65+, below ret."),
+           levels = c('Total', 'below 25', '25 to 55',
+                      '55 to 65', '65+', '65+, below ret.')))
 
 
 # plot percentage of missing values by region and 
@@ -181,6 +176,11 @@ p_NA_oldsvpao_regio <-  summary_regio_reg %>%
 p_NA_oldsvpao_regio
 
 
+ggsave("p_NA_oldsvpao_regio.png", width = 32, height = 18, units = "cm")
+
+
+
+
 p_NA_oldsvpao_age <-  summary_regio_reg %>% 
   filter(measure == "nmiss") %>% 
   ggplot(aes(x=gen_rs7, y=value, fill = gender)) +
@@ -196,6 +196,7 @@ p_NA_oldsvpao_age <-  summary_regio_reg %>%
 
 p_NA_oldsvpao_age
 
+ggsave("p_NA_oldsvpao_age.png", width = 32, height = 18, units = "cm")
 
 
 
@@ -218,8 +219,18 @@ summary_regio_marg <- oldsvp_marg %>%
                names_to = c( "gender","variable", "del", "measure"),
                names_sep = "_") %>% 
   drop_na() %>% 
+  select(-c("del")) %>% 
   mutate(gender = factor(str_to_title(gender), 
-                         levels = c("Total", "Men", "Women")))
+                         levels = c("Total", "Men", "Women")))  %>% 
+  mutate(variable = factor(x = case_when( # recoding of variable names
+    variable == "total" ~ "Total",
+    variable == "below25" ~ "below 25",
+    variable == "25to55" ~ "25 to 55",
+    variable == "55to65" ~  "55 to 65", 
+    variable == "65older" ~  "65+",
+    variable == "65olderstand" ~ "65+, below ret."),
+    levels = c('Total', 'below 25', '25 to 55',
+               '55 to 65', '65+', '65+, below ret.')))
 
 
 # plot percentage of missing values by region and 
@@ -239,6 +250,7 @@ p_NA_oldsvp_marg_regio <-  summary_regio_marg %>%
 p_NA_oldsvp_marg_regio
 
 
+ggsave("p_NA_oldsvp_marg_regio.png", width = 32, height = 18, units = "cm")
 
 
 p_NA_oldsvp_marg_age <-  summary_regio_marg %>% 
@@ -252,9 +264,11 @@ p_NA_oldsvp_marg_age <-  summary_regio_marg %>%
        subtitle = "Marginal employment data") +
   scale_fill_brewer(palette = "Set2", 
                     labels = c("Total", "Men", "Women")) +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 1))
 
 p_NA_oldsvp_marg_age
+
+ggsave("p_NA_oldsvp_marg_age.png", width = 32, height = 18, units = "cm")
 
 
 

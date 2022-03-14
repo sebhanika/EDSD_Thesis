@@ -119,6 +119,11 @@ pop_new <- pop %>%
   ungroup()
 
 
+
+list_dfs <- listn(pop_age, arbl, econ_ao, svp_ao,
+                  svp_wo, oldsvp_ao, pop, oldsvp_marg)
+
+
 # filter all dataframes
 list_dfs_filt <- sapply(list_dfs, filter, id %in% pop_new$id)
 

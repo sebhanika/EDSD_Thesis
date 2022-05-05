@@ -1,9 +1,8 @@
 
 # EDSD Thesis 2021/22
 # Code for Preliminary Stats and View of dataset
-# Author: Sebstian Hanika
+# Author: Sebastian Hanika
 # Date: 25/02/2022
-
 
 
 # Libraries ---------------------------------------------------------------
@@ -119,7 +118,6 @@ pop_new <- pop %>%
   ungroup()
 
 
-
 list_dfs <- listn(pop_age, arbl, econ_ao, svp_ao,
                   svp_wo, oldsvp_ao, pop, oldsvp_marg)
 
@@ -132,6 +130,7 @@ summary_dfs_filt <- output_dfs(listdf = list_dfs_filt , func = summary_func)
 
 # output to latex format for report
 #kable(summary_dfs_filt, "latex")
+
 
 # Summary stats regular employees by regiostar7 ---------------------------
 
@@ -167,21 +166,55 @@ summary_regio_reg <- oldsvp_ao %>%
 # plot percentage of missing values by region and 
 p_NA_oldsvpao_regio <-  summary_regio_reg %>% 
   filter(measure == "nmiss") %>% 
-  ggplot(aes(x=variable, y=value, fill = gender)) +
+  ggplot(aes(x=value, y=variable, fill = forcats::fct_rev(gender))) +
   geom_bar(stat = "identity", position = "dodge") +
+  scale_y_discrete(limits = rev(levels(summary_regio_reg$variable)))+
   facet_wrap(.~gen_rs7) + 
-  labs(x = "Variable",
-       y = "Missing values (%)",
-       title = "Missing values for employment data by spatial class",
-       subtitle = "Regular employment data") +
-  scale_fill_brewer(palette = "Set2", 
-                    labels = c("Total", "Men", "Women")) +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  labs(y = "Variable",
+       x = "Missing values (%)")+
+  scale_fill_brewer(palette = "Set2",
+                    labels = c("Women", "Men", "Total"),
+                    guide = guide_legend(reverse = TRUE)) +
+  theme(axis.text.x = element_text(hjust = 1),
+        strip.text = element_text(size=18))
 
 p_NA_oldsvpao_regio
 
 
 ggsave("p_NA_oldsvpao_regio.png", width = 32, height = 18, units = "cm")
+
+
+
+#---------
+
+# old
+
+# plot percentage of missing values by region and 
+p_NA_oldsvpao_regio <-  summary_regio_reg %>% 
+  filter(measure == "nmiss") %>% 
+  ggplot(aes(x=variable, y=value, fill = gender)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  facet_wrap(.~gen_rs7) + 
+  labs(x = "Variable",
+       y = "Missing values (%)")+
+  scale_fill_brewer(palette = "Set2", 
+                    labels = c("Total", "Men", "Women")) +
+  theme(axis.text.x = element_text(hjust = 1, angle = 45))
+
+p_NA_oldsvpao_regio
+
+
+
+
+#----------
+
+
+
+
+
+
+
+
 
 
 
@@ -201,7 +234,7 @@ p_NA_oldsvpao_age <-  summary_regio_reg %>%
 
 p_NA_oldsvpao_age
 
-ggsave("p_NA_oldsvpao_age.png", width = 32, height = 18, units = "cm")
+#ggsave("p_NA_oldsvpao_age.png", width = 32, height = 18, units = "cm")
 
 
 
@@ -255,7 +288,7 @@ p_NA_oldsvp_marg_regio <-  summary_regio_marg %>%
 p_NA_oldsvp_marg_regio
 
 
-ggsave("p_NA_oldsvp_marg_regio.png", width = 32, height = 18, units = "cm")
+#ggsave("p_NA_oldsvp_marg_regio.png", width = 32, height = 18, units = "cm")
 
 
 p_NA_oldsvp_marg_age <-  summary_regio_marg %>% 
@@ -273,7 +306,7 @@ p_NA_oldsvp_marg_age <-  summary_regio_marg %>%
 
 p_NA_oldsvp_marg_age
 
-ggsave("p_NA_oldsvp_marg_age.png", width = 32, height = 18, units = "cm")
+#ggsave("p_NA_oldsvp_marg_age.png", width = 32, height = 18, units = "cm")
 
 
 

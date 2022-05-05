@@ -21,9 +21,9 @@ basic_theme <- theme_set(theme_bw() +
                                  panel.grid.minor = element_blank(),
                                  panel.background = element_blank(), 
                                  axis.line = element_line(colour = "black"),
-                                 axis.title = element_text(size=14, color = "grey30"),
-                                 axis.text = element_text(size=14, color = "grey30"),
-                                 legend.text = element_text(size=14, color = "grey30"),
+                                 axis.title = element_text(size=16, color = "grey30"),
+                                 axis.text = element_text(size=16, color = "grey30"),
+                                 legend.text = element_text(size=16, color = "grey30"),
                                  legend.title=element_blank()))
 
 
@@ -36,7 +36,7 @@ basic_theme <- theme_set(theme_bw() +
 # summary statistics variables and each row is one variable in the dataframe
 
 
-# (1) create named list of dataframes 
+# (1) create named list of dataframes
 listn <- function(...) {
   objs <- as.list(substitute(list(...)))[-1L]
   nm <- as.character(objs)

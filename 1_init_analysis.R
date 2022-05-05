@@ -176,47 +176,16 @@ p_NA_oldsvpao_regio <-  summary_regio_reg %>%
                     labels = c("Women", "Men", "Total"),
                     guide = guide_legend(reverse = TRUE)) +
   theme(axis.text.x = element_text(hjust = 1),
-        strip.text = element_text(size=18))
+        strip.text = element_text(size=18),
+        axis.title = element_text(size=18),
+        axis.text = element_text(size=16, color = "grey30"),
+        legend.text = element_text(size=16),
+        legend.position = "bottom")
 
 p_NA_oldsvpao_regio
 
 
 ggsave("p_NA_oldsvpao_regio.png", width = 32, height = 18, units = "cm")
-
-
-
-#---------
-
-# old
-
-# plot percentage of missing values by region and 
-p_NA_oldsvpao_regio <-  summary_regio_reg %>% 
-  filter(measure == "nmiss") %>% 
-  ggplot(aes(x=variable, y=value, fill = gender)) +
-  geom_bar(stat = "identity", position = "dodge") +
-  facet_wrap(.~gen_rs7) + 
-  labs(x = "Variable",
-       y = "Missing values (%)")+
-  scale_fill_brewer(palette = "Set2", 
-                    labels = c("Total", "Men", "Women")) +
-  theme(axis.text.x = element_text(hjust = 1, angle = 45))
-
-p_NA_oldsvpao_regio
-
-
-
-
-#----------
-
-
-
-
-
-
-
-
-
-
 
 
 p_NA_oldsvpao_age <-  summary_regio_reg %>% 

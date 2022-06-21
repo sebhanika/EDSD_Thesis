@@ -10,8 +10,8 @@ library(tidyverse)
 library(dbplyr)
 library(RPostgreSQL)
 require(RPostgreSQL)
-library(RColorBrewer)
-library(knitr)
+library(missForest) # used for imputation
+
 
 # source functions from functions Module
 source("0_functions_module.R")
@@ -21,152 +21,55 @@ options(scipen=999) # disable scientific notation
 
 # Database connection and query -------------------------------------------
 
-pw <- {"Thes1s_EDSD?"} 
-drv <- dbDriver("PostgreSQL") # loads the PostgreSQL driver
-# creates a connection to the postgres database
-con <- dbConnect(drv, dbname = "MT",
-                 host = "localhost", port = 5432,
-                 user = "postgres", password = pw)
+### Query all tables from MT database, settings defined in 'functions_module'
+tbl_list <- lapply(tableList, function(t) tbl(con, t))
 
+# collect tables to tibble and trim white spaces
+dfList <- lapply(tbl_list, function(t) collect(t) %>% 
+                   mutate(across(where(is.character), str_trim)))
 
-tbl_muni_ref <- tbl(con, "ref_raumtyp")
-tbl_popage <- tbl(con, "gs2019_age_groups")
-tbl_arbl <- tbl(con, "gs2019_amk_arbl")
-tbl_econ_ao <- tbl(con, "gs2019_amk_econ_ao")
-tbl_marg_emp <- tbl(con, "gs2019_amk_marg_emp")
-tbl_svp_ao <- tbl(con, "gs2019_amk_svp_ao")
-tbl_svp_wo <- tbl(con, "gs2019_amk_svp_wo")
-tbl_oldsvp_ao <- tbl(con, "gs2019_oldsvp_ao")
-tbl_oldsvp_marg <- tbl(con, "gs2019_oldsvp_marg")
-tbl_pop <- tbl(con, "gs2019_pop_muni")
+# set shorter names for tables
+dfList <- setNames(dfList, names_df)
 
-#population age data
-pop_age <- tbl_popage %>%
-  collect() %>% #is necessary to create table
-  mutate(across(where(is.character), str_trim)) # deletes whitespace
-
-#unemployment data
-arbl <- tbl_arbl %>%
-  collect() %>%
-  mutate(across(where(is.character), str_trim))
-
-# economic sector data
-econ_ao <- tbl_econ_ao %>% 
-  collect() %>% 
-  mutate(across(where(is.character), str_trim))
-
-# Employees at place of work data
-svp_ao <- tbl_svp_ao %>% 
-  collect() %>% 
-  mutate(across(where(is.character), str_trim))
-
-# Employees at place of residence data
-svp_wo <- tbl_svp_wo %>% 
-  collect() %>% 
-  mutate(across(where(is.character), str_trim))
-
-# old age employees at the place of employment
-oldsvp_ao <- tbl_oldsvp_ao %>% 
-  collect() %>% 
-  mutate(across(where(is.character), str_trim)) 
-
-# population table
-pop <- tbl_pop %>%
-  collect() %>%
-  mutate(across(where(is.character), str_trim)) %>%
-  rename(pop_total = total) %>%
-  filter(year %in% 2009:2019)
-
-# old age marginal employees at the place of employment
-oldsvp_marg <- tbl_oldsvp_marg %>% 
-  collect() %>%
-  mutate(across(where(is.character), str_trim))
-
-# Municipal reference table/regiostar7 classification
-muni_ref <- tbl_muni_ref %>%
-  select(muni_key, muni_name, regiostar7) %>%
-  collect() %>%
-  mutate(across(where(is.character), str_trim)) %>% 
-  mutate(regiostar7 = if_else(regiostar7 == 71, 72, regiostar7), # merge two urban categories
-         gen_rs7 = case_when( # assign terms to rs7 values
-  regiostar7 == 72 ~ 'Large City, urban',
-  regiostar7 == 73 ~ 'Medium-sized city, urban',
-  regiostar7 == 74 ~ 'Small town, urban',
-  regiostar7 == 75 ~ 'Central City, rural',
-  regiostar7 == 76 ~ 'Medium-sized city, rural',
-  regiostar7 == 77 ~ 'Small town, rural'))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 
-# 
-#          , # merge two urban categories
-#          gen_rs7 = factor(x = case_when( # assign terms to rs7 values
-#            regiostar7 == 72 ~ 'Large City, urban',
-#            regiostar7 == 73 ~ 'Medium-sized city, urban',
-#            regiostar7 == 74 ~ 'Small town, urban',
-#            regiostar7 == 75 ~ 'Central City, rural',
-#            regiostar7 == 76 ~ 'Medium-sized city, rural',
-#            regiostar7 == 77 ~ 'Small town, rural'),
-#            levels = c('Large City, urban', # set factor levels
-#                       'Medium-sized city, urban',
-#                       'Small town, urban',
-#                       'Central City, rural',
-#                       'Medium-sized city, rural',
-#                       'Small town, rural')))
-
-# removing tbl objects from environment
-rm(list = ls(pattern = "^tbl"))
-
-
-
+# add tables to Global Environment
+list2env(dfList, envir=.GlobalEnv)
 
 # Data prep ---------------------------------------------------------------
 
+# create factors for muni_ref
+muni_ref <- muni_ref %>%
+  mutate(gen_rs7 = factor(gen_rs7,
+                          levels = c('Large City, urban', # set factor levels
+                                     'Medium-sized city, urban',
+                                     'Small town, urban',
+                                     'Central City, rural',
+                                     'Medium-sized city, rural', 
+                                     'Small town, rural')))
+
+# filter population table
+pop <- pop_tot %>% 
+  rename(pop_total = total) %>%
+  filter(year %in% 2009:2019)
+
 # removing small data, only lose about 0.9% of total German population
-pop_new <- pop %>% 
+pop_select <- pop %>% 
   filter(pop_total >= 1000) %>% #remove small towns
   group_by(muni_key) %>%  
   filter(n() == 11) %>%  # keep only complete observations
   ungroup()
 
+# list of data frames to filter small municipalities
+list_dfs <- listn(pop_age, arbl, econ_ao, svp_ao,
+                  svp_wo, oldsvp_ao, pop, oldsvp_marg)
 
+# apply filter to all data frames
+list_dfs_filt <- sapply(list_dfs, filter, id %in% pop_select$id)
 
+# add tables to Global Environment
+list2env(list_dfs_filt, envir=.GlobalEnv)
 
-#export to postgresql
-sql_command <- "CREATE TABLE ref_regiostar7
-  (
-    muni_key character (20) PRIMARY KEY,
-    muni_name character (50),
-    regiostar7 numeric (10),
-    gen_rs7 character (30)
-  )
-  WITH (
-    OIDS=FALSE
-  );"
-
-# sends the command and creates the table
-dbGetQuery(con, sql_command)
-
-# uploads dataframe to Table
-dbWriteTable(con, "ref_regiostar7", muni_ref, row.names=FALSE, append=TRUE)
+# remove unwanted variables
+rm(pop_tot, list_dfs_filt, tbl_list, dfList, list_dfs)
 
 
 
@@ -174,22 +77,24 @@ dbWriteTable(con, "ref_regiostar7", muni_ref, row.names=FALSE, append=TRUE)
 
 
 
+# First try randomForest imputation ---------------------------------------
+
+
+try.imp.data <- svp_ao %>% 
+  filter(year > 2015) %>% 
+  select(where(is.numeric)) %>% 
+  as.data.frame()
 
 
 
+# performing imputation, this can take a while!!!
+imp_rf <- missForest(xmis = try.imp.data, maxiter = 3, ntree = 11)
 
+# extracting data
+data_final <- imp_rf$ximp
 
-
-
-
-
-
-
-
-
-
-
-
+# extracting the errors
+errors_imp <- imp_rf$OOBerror
 
 
 

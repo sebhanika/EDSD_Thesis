@@ -1,6 +1,6 @@
 
-# EDSD Thesis 2021/22
-# Code for Preliminary Stats and View of dataset
+# Title: EDSD Thesis 2021/22
+# Topic: Code for Preliminary Stats and View of dataset
 # Author: Sebastian Hanika
 # Date: 25/02/2022
 

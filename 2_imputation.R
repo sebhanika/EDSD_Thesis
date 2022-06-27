@@ -10,14 +10,16 @@ library(tidyverse)
 library(dbplyr)
 library(RPostgreSQL)
 require(RPostgreSQL)
-library(missForest) # used for imputation
-
+library(robustbase)
+library(missRanger)
+library(mice)
 
 # source functions from functions Module
 source("0_functions_module.R")
 
 options(scipen=999) # disable scientific notation 
 
+filter <- dplyr::filter
 
 # Database connection and query -------------------------------------------
 
@@ -70,6 +72,66 @@ list2env(list_dfs_filt, envir=.GlobalEnv)
 
 # remove unwanted variables
 rm(pop_tot, list_dfs_filt, tbl_list, dfList, list_dfs)
+
+
+
+
+
+
+
+# Imputation with fixed values --------------------------------------------
+
+
+try.one <- oldsvp_ao %>% 
+  mutate(across(where(is.numeric), ~replace_na(.x, 1)))
+
+try.two <- oldsvp_ao %>% 
+  mutate(across(where(is.numeric), ~replace_na(.x, 2)))
+
+
+# Imputation with mean values ---------------------------------------------
+
+
+mean_imp_oldsvp_marg <- oldsvp_marg %>%   # filters only groups that have a complete set of years
+  group_by(muni_key) %>%
+  mutate(across(.cols = -c("muni_name","id", "year"),
+                .fns = 
+                ~ case_when(
+                  is.na(.) ~ mean(., na.rm = T), # replaces NAs with mean of group
+                  !is.na(.) ~ .))) #conditions if  not NA
+
+
+
+
+# Imputation missRanger and mice ------------------------------------------
+
+
+
+# Generate 5 complete data sets
+imp_ranger <- replicate(5,missRanger(oldsvp_marg, 
+                              formula = .-muni_key - year - muni_name -id ~ .-muni_key - year - muni_name -id,
+                              splitrule = "extratrees", 
+                              maxiter = 10,
+                              num.trees = 10,
+                              pmm.k = 3),
+                 simplify = F)
+
+
+
+eii# join other columns that are needed for imputation
+test_imp_list <- map(imp_ranger,
+                      function(x) left_join(muni_ref, x, by = c("muni_key")))
+
+
+names(test_imp_list) = c("test_a","test_b","test_b","test_d", "test_e")
+list2env(test_imp_list, envir=.GlobalEnv, )
+
+# Run a linear model for each of the completed data sets                          
+models <- lapply(test_imp_list, function(x) lm(total_65olderstand_m ~ regiostar7, x))
+
+# Pool the results by mice
+summary(pooled_fit <- pool(models))
+
 
 
 

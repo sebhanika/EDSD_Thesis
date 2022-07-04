@@ -13,6 +13,8 @@ require(RPostgreSQL)
 library(robustbase)
 library(missRanger)
 library(mice)
+library(broom)
+
 
 # source functions from functions Module
 source("0_functions_module.R")
@@ -117,7 +119,8 @@ df_ranger <- oldsvp_ao %>%
                                   'men_65older_m', 'men_65olderstand_m',
                                   'women_65older_m', 'women_65olderstand_m')),
             by = c('id', 'year', 'muni_key')) %>%  
-  left_join(select(muni_ref, c('muni_key', 'regiostar7', 'gen_rs7')), by = 'muni_key')
+  left_join(select(muni_ref, c('muni_key', 'regiostar7', 'gen_rs7')), by = 'muni_key') %>% 
+  mutate(regiostar7 = as.factor(regiostar7))
 
 
 
@@ -164,15 +167,35 @@ rm(arbl, pop, pop_age, svp_ao, svp_wo, try.one, try.two, econ_ao, mean_imp_oldsv
 list_test_df <- list(test_a, test_b, test_c, test_d, test_e)
 
 # trying out code for apply to list
+
+
+
 test_a_prep <- test_a %>% 
-  pivot_longer(cols = -c(id, year, muni_key, regiostar7, gen_rs7),
-               names_to = c("sex", "age", "type"), names_sep = "_") %>% 
-  arrange(muni_key, year) %>%                                                             
-  mutate(type = replace_na(type, "full")) %>% 
-  group_by(muni_key, sex, age, type) %>% 
-  mutate(grw = value - lag(value, n = 10), 
-         grw_per = (grw/lag(value, n = 10))*100
-         )
+    mutate(regiostar7 = as.factor(regiostar7)) %>% 
+    pivot_longer(cols = -c(id, year, muni_key, regiostar7, gen_rs7),
+                 names_to = c("sex", "age", "type"), names_sep = "_") %>% 
+    arrange(muni_key, year) %>%                                                             
+    mutate(type = replace_na(type, "full")) %>% 
+    group_by(muni_key, sex, age, type) %>% 
+    mutate(grw = value - lag(value, n = 10), 
+           grw_per = (grw/lag(value, n = 10))*100) %>% 
+    mutate(grw_per = if_else(is.nan(grw_per), 0, grw_per), # replace NaN and Inf, faster than case_when
+           grw_per = if_else(is.infinite(grw_per), 0, grw_per)) %>% 
+    pivot_wider(names_sep = "_", 
+                values_from = c("value", "grw", "grw_per"),
+                names_from = c("sex", "age", "type"))
+
+
+
+test_model <- lmrob(grw_per_total_total_full ~ grw_per_total_65older_full + regiostar7,
+                    data = test_a_prep)
+
+summary(test_model)
+
+
+
+
+
 
 
 
@@ -188,60 +211,23 @@ imp_ranger_calc <- lapply(list_test_df, function(x) x %>%
                                       group_by(muni_key, sex, age, type) %>% 
                                       mutate(grw = value - lag(value, n = 10), 
                                              grw_per = (grw/lag(value, n = 10))*100
-                                             )
+                                             ) %>% 
+                                      pivot_wider(names_sep = "_", 
+                                                  values_from = c("value", "grw", "grw_per"),
+                                                  names_from = c("sex", "age", "type"))
+                          
                           )
 
 
 
 
-
-
-
-
 # Run a linear model for each of the completed data sets                          
-models <- lapply(imp_ranger_calc, function(x) lm(total_65olderstand_m ~ regiostar7, x))
+models <- lapply(imp_ranger_calc, function(x) lmrob(grw_per_total_total_full ~ grw_per_total_total_full +
+                                                      grw_
+                                                                                regiostar7, x))
 
 # Pool the results by mice
 summary(pooled_fit <- pool(models))
 
 
-
-
-?pool
-
-
-
-# First try randomForest imputation ---------------------------------------
-
-
-try.imp.data <- svp_ao %>% 
-  filter(year > 2015) %>% 
-  select(where(is.numeric)) %>% 
-  as.data.frame()
-
-
-
-# performing imputation, this can take a while!!!
-imp_rf <- missForest(xmis = try.imp.data, maxiter = 3, ntree = 11)
-
-# extracting data
-data_final <- imp_rf$ximp
-
-# extracting the errors
-errors_imp <- imp_rf$OOBerror
-
-
-
-
-
-
-
-# other code bits ---------------------------------------------------------
-
-
-# 
-# # join other columns that are needed for imputation
-# test_imp_list <- map(imp_ranger,
-#                       function(x) left_join(muni_ref, x, by = c("muni_key")))
-# 
 

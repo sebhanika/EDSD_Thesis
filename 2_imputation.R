@@ -75,10 +75,6 @@ rm(pop_tot, list_dfs_filt, tbl_list, dfList, list_dfs)
 
 
 
-
-
-
-
 # Imputation with fixed values --------------------------------------------
 
 
@@ -101,33 +97,109 @@ mean_imp_oldsvp_marg <- oldsvp_marg %>%   # filters only groups that have a comp
                   !is.na(.) ~ .))) #conditions if  not NA
 
 
-
-
 # Imputation missRanger and mice ------------------------------------------
+
+
+# select data for missing ranger imputation and model
+# total_total for total job growth
+# men_65older_m, men_65older, women_65older_m, women_65older
+# muni_ref
+
+
+df_ranger <- oldsvp_ao %>% 
+  select(c('id', 'year', 'muni_key', 'total_total', 
+           "total_65older", "total_65olderstand", 
+           'men_65older', 'men_65olderstand',
+           'women_65older', 'women_65olderstand')) %>% 
+  # join dfs
+  left_join(select(oldsvp_marg, c('id', 'year', 'muni_key', 'total_total_m', 
+                                  "total_65older_m", "total_65olderstand_m",
+                                  'men_65older_m', 'men_65olderstand_m',
+                                  'women_65older_m', 'women_65olderstand_m')),
+            by = c('id', 'year', 'muni_key')) %>%  
+  left_join(select(muni_ref, c('muni_key', 'regiostar7', 'gen_rs7')), by = 'muni_key')
+
 
 
 
 # Generate 5 complete data sets
-imp_ranger <- replicate(5,missRanger(oldsvp_marg, 
+imp_ranger <- replicate(5,missRanger(df_ranger, 
                               formula = .-muni_key - year - muni_name -id ~ .-muni_key - year - muni_name -id,
                               splitrule = "extratrees", 
-                              maxiter = 10,
-                              num.trees = 10,
+                              maxiter = 5,
+                              num.trees = 5,
                               pmm.k = 3),
                  simplify = F)
 
+# names created datasets
+names(imp_ranger) <-  c("test_a","test_b","test_c","test_d", "test_e")
+
+# add tables to Global Environment
+list2env(imp_ranger, envir=.GlobalEnv)
+
+# Save created imputation to Rdata file, igonore in Git. 
+# Done for quicker testing, delete later
+# 
+#  save(test_a, file = 'test_a.RData')
+#  save(test_b, file = 'test_b.RData')
+#  save(test_c, file = 'test_c.RData')
+#  save(test_d, file = 'test_d.RData')
+#  save(test_e, file = 'test_e.RData')
 
 
-eii# join other columns that are needed for imputation
-test_imp_list <- map(imp_ranger,
-                      function(x) left_join(muni_ref, x, by = c("muni_key")))
 
 
-names(test_imp_list) = c("test_a","test_b","test_b","test_d", "test_e")
-list2env(test_imp_list, envir=.GlobalEnv, )
+##### reload test files, everything else not needed
+
+rm(arbl, pop, pop_age, svp_ao, svp_wo, try.one, try.two, econ_ao, mean_imp_oldsvp_marg)
+
+# 
+# load('test_a.RData')
+# load('test_b.RData')
+# load('test_c.RData')
+# load('test_d.RData')
+# load('test_e.RData')
+
+# create list of data frames
+list_test_df <- list(test_a, test_b, test_c, test_d, test_e)
+
+# trying out code for apply to list
+test_a_prep <- test_a %>% 
+  pivot_longer(cols = -c(id, year, muni_key, regiostar7, gen_rs7),
+               names_to = c("sex", "age", "type"), names_sep = "_") %>% 
+  arrange(muni_key, year) %>%                                                             
+  mutate(type = replace_na(type, "full")) %>% 
+  group_by(muni_key, sex, age, type) %>% 
+  mutate(grw = value - lag(value, n = 10), 
+         grw_per = (grw/lag(value, n = 10))*100
+         )
+
+
+
+
+# calcualte the growth rates for all 5 dataframes
+# in final version replace 'list_test_df' through 'imp_ranger'
+
+imp_ranger_calc <- lapply(list_test_df, function(x) x %>% 
+                                       pivot_longer(cols = -c(id, year, muni_key, regiostar7, gen_rs7),
+                                                   names_to = c("sex", "age", "type"), names_sep = "_") %>% 
+                                      arrange(muni_key, year) %>%                                                             
+                                      mutate(type = replace_na(type, "full")) %>% 
+                                      group_by(muni_key, sex, age, type) %>% 
+                                      mutate(grw = value - lag(value, n = 10), 
+                                             grw_per = (grw/lag(value, n = 10))*100
+                                             )
+                          )
+
+
+
+
+
+
+
 
 # Run a linear model for each of the completed data sets                          
-models <- lapply(test_imp_list, function(x) lm(total_65olderstand_m ~ regiostar7, x))
+models <- lapply(imp_ranger_calc, function(x) lm(total_65olderstand_m ~ regiostar7, x))
 
 # Pool the results by mice
 summary(pooled_fit <- pool(models))
@@ -135,7 +207,7 @@ summary(pooled_fit <- pool(models))
 
 
 
-
+?pool
 
 
 
@@ -159,4 +231,17 @@ data_final <- imp_rf$ximp
 errors_imp <- imp_rf$OOBerror
 
 
+
+
+
+
+
+# other code bits ---------------------------------------------------------
+
+
+# 
+# # join other columns that are needed for imputation
+# test_imp_list <- map(imp_ranger,
+#                       function(x) left_join(muni_ref, x, by = c("muni_key")))
+# 
 

@@ -169,52 +169,71 @@ list_test_df <- list(test_a, test_b, test_c, test_d, test_e)
 # trying out code for apply to list
 
 
+# calcualting grrowth rates of employment variables,
+# using a pivot_long approach, however needs to be wide for model in the end?
 
-test_a_prep <- test_a %>% 
+
+# here only using pivot_long format
+calc_long <- test_a %>% 
+    #filter(str_starts(muni_key, "0105")) %>% # for smaller df, can be deleted
     mutate(regiostar7 = as.factor(regiostar7)) %>% 
     pivot_longer(cols = -c(id, year, muni_key, regiostar7, gen_rs7),
                  names_to = c("sex", "age", "type"), names_sep = "_") %>% 
     arrange(muni_key, year) %>%                                                             
-    mutate(type = replace_na(type, "full")) %>% 
+    mutate(type = replace_na(type, "r")) %>% # for regular employment
+    group_by(muni_key, year) %>% 
+    mutate(share = value/value[sex == 'total' & age == 'total' & type == 'r']) %>%  # calculate share of workforce
+      #calculate growth rates
     group_by(muni_key, sex, age, type) %>% 
-    mutate(grw = value - lag(value, n = 10), 
-           grw_per = (grw/lag(value, n = 10))*100) %>% 
-    mutate(grw_per = if_else(is.nan(grw_per), 0, grw_per), # replace NaN and Inf, faster than case_when
-           grw_per = if_else(is.infinite(grw_per), 0, grw_per)) %>% 
+    mutate(grw = value - lag(value, n = 10),# absolute growth in employment numbers
+           grw_p = (grw/lag(value, n = 10))*100, # relative growth
+           grw_sh = (share - lag(share, n = 10))*100) %>% # change in share of employment
+  
+      # cleaning: replace NaN and Inf, faster than case_when
+    mutate(grw_p = if_else(is.nan(grw_p), 0, grw_p), 
+           grw_p = if_else(is.infinite(grw_p), 0, grw_p)) %>% 
     pivot_wider(names_sep = "_", 
-                values_from = c("value", "grw", "grw_per"),
+                values_from = c("value", "grw", "grw_p", "share", "grw_sh"),
                 names_from = c("sex", "age", "type"))
 
 
-
-test_model <- lmrob(grw_per_total_total_full ~ grw_per_total_65older_full + regiostar7,
-                    data = test_a_prep)
-
-summary(test_model)
+# save intermediate df 
+#save(calc_long, file = 'cald_data.RData')
+# load('cald_data.RData')
 
 
+mod_test1 <- lmrob(grw_p_total_total_r ~ grw_sh_total_65older_r + regiostar7,
+                                 data = calc_long)
+  
+summary(mod_test1)
 
 
-
-
-
+# Applying calcualtion to list of imputed dataframes ----------------------
 
 
 # calcualte the growth rates for all 5 dataframes
 # in final version replace 'list_test_df' through 'imp_ranger'
 
 imp_ranger_calc <- lapply(list_test_df, function(x) x %>% 
-                                       pivot_longer(cols = -c(id, year, muni_key, regiostar7, gen_rs7),
-                                                   names_to = c("sex", "age", "type"), names_sep = "_") %>% 
-                                      arrange(muni_key, year) %>%                                                             
-                                      mutate(type = replace_na(type, "full")) %>% 
-                                      group_by(muni_key, sex, age, type) %>% 
-                                      mutate(grw = value - lag(value, n = 10), 
-                                             grw_per = (grw/lag(value, n = 10))*100
-                                             ) %>% 
-                                      pivot_wider(names_sep = "_", 
-                                                  values_from = c("value", "grw", "grw_per"),
-                                                  names_from = c("sex", "age", "type"))
+                            mutate(regiostar7 = as.factor(regiostar7)) %>% 
+                            pivot_longer(cols = -c(id, year, muni_key, regiostar7, gen_rs7),
+                                         names_to = c("sex", "age", "type"), names_sep = "_") %>% 
+                            arrange(muni_key, year) %>%                                                             
+                            mutate(type = replace_na(type, "r")) %>% # for regular employment
+                            group_by(muni_key, year) %>% 
+                            mutate(share = value/value[sex == 'total' & age == 'total' & type == 'r']) %>%  # calculate share of workforce
+                            #calculate growth rates
+                            group_by(muni_key, sex, age, type) %>% 
+                            mutate(grw = value - lag(value, n = 10),# absolute growth in employment numbers
+                                   grw_p = (grw/lag(value, n = 10))*100, # relative growth
+                                   grw_sh = (share - lag(share, n = 10))*100) %>% # change in share of employment
+                            
+                            # cleaning: replace NaN and Inf, faster than case_when
+                            mutate(grw_p = if_else(is.nan(grw_p), 0, grw_p), 
+                                   grw_p = if_else(is.infinite(grw_p), 0, grw_p)) %>% 
+                            pivot_wider(names_sep = "_", 
+                                        values_from = c("value", "grw", "grw_p", "share", "grw_sh"),
+                                        names_from = c("sex", "age", "type"))
                           
                           )
 
@@ -222,10 +241,8 @@ imp_ranger_calc <- lapply(list_test_df, function(x) x %>%
 
 
 # Run a linear model for each of the completed data sets                          
-models <- lapply(imp_ranger_calc, function(x) lmrob(grw_per_total_total_full ~ grw_per_total_total_full +
-                                                      grw_
-                                                                                regiostar7, x))
-
+models <- lapply(imp_ranger_calc, function(x) lmrob(grw_p_total_total_r ~ grw_sh_total_65older_r + regiostar7,
+                                                    data = calc_long))
 # Pool the results by mice
 summary(pooled_fit <- pool(models))
 

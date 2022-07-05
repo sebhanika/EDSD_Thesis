@@ -8,8 +8,6 @@
 # to see how the imputed dataset behave. The goal is to do the same with mean value imputation
 # and imputation using fixed values.
 
-### Old version with everything. might combine in the end.
-
 # Libraries ---------------------------------------------------------------
 
 library(tidyverse)
@@ -77,8 +75,8 @@ geo_vars <- muni_ref %>%
                             true = 'East',
                             false =  'West')) %>% 
   select(-c(gen_rs7, regiostar7)) #drop unneccesary columns
-  
-           
+
+
 # filter population table
 # removing small data, only lose about 0.9% of total German population
 pop_select <- pop_tot %>% 
@@ -102,14 +100,14 @@ list2env(list_dfs_filt, envir=.GlobalEnv)
 rm(pop_tot, list_dfs_filt, tbl_list, dfList, list_dfs, tbl_dist100pop, hub_dist100pop)
 
 
-# Imputation missRanger and mice ------------------------------------------
+# Create dataframe to impute ----------------------------------------------
 
 # select data for missing ranger imputation and model
 # total_total for total job growth
 # men_65older_m, men_65older, women_65older_m, women_65older for ageing
 # muni_ref, east-germany and hubdist as geo-variables
 
-df_ranger <- oldsvp_ao %>% 
+df_impute <- oldsvp_ao %>% 
   select(c('id', 'year', 'muni_key', 'total_total', 
            'total_65older', 'total_65olderstand', 
            'men_65older', 'men_65olderstand',
@@ -127,16 +125,43 @@ df_ranger <- oldsvp_ao %>%
   drop_na(hubdist100)
 
 
+
+
+# Imputation with fixed values --------------------------------------------
+
+
+df_fix_one <- df_impute %>% 
+  mutate(across(where(is.numeric), ~replace_na(.x, 1)))
+
+df_fix_two <- df_impute %>% 
+  mutate(across(where(is.numeric), ~replace_na(.x, 2)))
+
+
+# Imputation with mean values ---------------------------------------------
+
+
+mean_imp <- df_impute %>%
+  group_by(muni_key) %>%
+  mutate(across(.cols = -c('id', 'year', "rs7", "hubdist100", "east_ger"),
+                .fns = 
+                  ~ case_when(
+                    is.na(.) ~ mean(., na.rm = T), # replaces NAs with mean of group
+                    !is.na(.) ~ .))) #conditions if  not NA
+
+
+
+# Imputation missRanger and mice ------------------------------------------
+
 # Generate 5 complete data sets with imputated values
-imp_ranger <- replicate(5,missRanger(df_ranger, 
-                              formula = .-muni_key-year-id-rs7-hubdist100-east_ger #exclude
-                                          ~ 
-                                        .-muni_key-year-id-rs7-hubdist100-east_ger,
-                              splitrule = 'extratrees', 
-                              maxiter = 5,
-                              num.trees = 10,
-                              pmm.k = 3), # needed to avoid decimal values
-                 simplify = F)
+imp_ranger <- replicate(5,missRanger(df_impute, 
+                                     formula = .-muni_key-year-id-rs7-hubdist100-east_ger #exclude
+                                     ~ 
+                                       .-muni_key-year-id-rs7-hubdist100-east_ger,
+                                     splitrule = 'extratrees', 
+                                     maxiter = 5,
+                                     num.trees = 10,
+                                     pmm.k = 3), # needed to avoid decimal values
+                        simplify = F)
 
 # name create datasets for easier handling
 names(imp_ranger) <-  c('test_a','test_b','test_c','test_d', 'test_e')
@@ -169,7 +194,9 @@ names(imp_ranger) <-  c('test_a','test_b','test_c','test_d', 'test_e')
 list_test_df <- list(test_a, test_b, test_c, test_d, test_e)
 
 
-# Applying calcualtion to list of imputed dataframes ----------------------
+
+
+# Running MICE models -----------------------------------------------------
 
 # based on the imputed values we can now calculate the growth rates and other variables
 # we need for the analysis, this needs to be done for all 5 dataframes. This process takes a while!
@@ -194,71 +221,17 @@ imp_ranger_calc <- lapply(imp_ranger, function(x) x %>%
                             pivot_wider(names_sep = '_', 
                                         values_from = c('value', 'grw', 'grw_p', 'share', 'grw_sh'),
                                         names_from = c('sex', 'age', 'type'))
-                          )
+)
 
 
 # Run a linear model for each of the completed data sets                          
 rf_mice_models <- lapply(imp_ranger_calc, 
                          function(x) lmrob(grw_p_total_total_r ~ grw_sh_total_65older_r +
-                                                                 rs7 + 
-                                                                 hubdist100 +
-                                                                 east_ger, 
-                                                    x))
+                                             rs7 + 
+                                             hubdist100 +
+                                             east_ger, 
+                                           x))
 # Pool the results by mice
 summary(pooled_fit <- pool(rf_mice_models))
-
-
-
-
-
-
-
-
-
-
-
-# other code bits ---------------------------------------------------------
-
-
-# trying out code for apply to lis
-
-# calcualting grrowth rates of employment variables,
-# using a pivot_long approach, however needs to be wide for model in the end?
-
-
-# here only using pivot_long format
-calc_long <- test_a %>% 
-  left_join(select(geo_vars, c('muni_key', 'east_ger', 'hubdist100')), by = 'muni_key') %>% 
-  mutate(regiostar7 = as.factor(regiostar7)) %>% 
-  pivot_longer(cols = -c(id, year, muni_key, regiostar7, gen_rs7, east_ger, hubdist100),
-               names_to = c('sex', 'age', 'type'), names_sep = '_') %>% 
-  arrange(muni_key, year) %>%                                                             
-  mutate(type = replace_na(type, 'r')) %>% # for regular employment
-  group_by(muni_key, year) %>% 
-  mutate(share = value/value[sex == 'total' & age == 'total' & type == 'r']) %>%  # calculate share of workforce
-  #calculate growth rates
-  group_by(muni_key, sex, age, type) %>% 
-  mutate(grw = value - lag(value, n = 10),# absolute growth in employment numbers
-         grw_p = (grw/lag(value, n = 10))*100, # relative growth
-         grw_sh = (share - lag(share, n = 10))*100) %>% # change in share of employment
-  
-  # cleaning: replace NaN and Inf, faster than case_when
-  mutate(grw_p = if_else(is.nan(grw_p), 0, grw_p), 
-         grw_p = if_else(is.infinite(grw_p), 0, grw_p)) %>% 
-  pivot_wider(names_sep = '_', 
-              values_from = c('value', 'grw', 'grw_p', 'share', 'grw_sh'),
-              names_from = c('sex', 'age', 'type'))
-
-
-# save intermediate df 
-#save(calc_long, file = 'cald_data.RData')
-# load('cald_data.RData')
-
-
-#simple model to test with only growth of the share of older workers (65+) and spatial classification
-mod_test <- lmrob(grw_p_total_total_r ~ grw_sh_to   tal_65older_r + regiostar7 + hubdist100 + east_ger,
-                   data = calc_long)
-
-summary(mod_test)
 
 

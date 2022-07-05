@@ -8,6 +8,8 @@
 # to see how the imputed dataset behave. The goal is to do the same with mean value imputation
 # and imputation using fixed values.
 
+### Old version with everything. might combine in the end.
+
 # Libraries ---------------------------------------------------------------
 
 library(tidyverse)

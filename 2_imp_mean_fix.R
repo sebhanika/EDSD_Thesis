@@ -3,10 +3,10 @@
 # Topic: Code for Imputation
 # Date: 05/07/2022
 
-# In this script I am creating an example of MICE Random Forest imputation on my dataset.
-# I construct a dataset with a few relevant variabele for my analysis and use robust regression
-# to see how the imputed dataset behave. The goal is to do the same with mean value imputation
-# and imputation using fixed values.
+# In this script I am creating an example ofmean value and fixed-value imputation for
+# my dataset. This is mostly done to compare with the MICE random forest imputation
+# These methods have severe limitations but are easy to understand/describe and execute
+
 
 # Libraries ---------------------------------------------------------------
 
@@ -102,22 +102,42 @@ rm(pop_tot, list_dfs_filt, tbl_list, dfList, list_dfs, tbl_dist100pop, hub_dist1
 
 
 
+# Create dataframe to impute ----------------------------------------------
+
+df_impute <- oldsvp_ao %>% 
+  select(c('id', 'year', 'muni_key', 'total_total', 
+           'total_65older', 'total_65olderstand', 
+           'men_65older', 'men_65olderstand',
+           'women_65older', 'women_65olderstand')) %>% 
+  # join marginal emplyoemtn variables
+  left_join(select(oldsvp_marg, c('id', 'year', 'muni_key', 'total_total_m', 
+                                  'total_65older_m', 'total_65olderstand_m',
+                                  'men_65older_m', 'men_65olderstand_m',
+                                  'women_65older_m', 'women_65olderstand_m')),
+            by = c('id', 'year', 'muni_key')) %>%  
+  # join geovariables
+  left_join(select(geo_vars, c('muni_key', 'rs7',
+                               'east_ger', 'hubdist100')),
+            by = 'muni_key') %>% 
+  drop_na(hubdist100)
+
+
 # Imputation with fixed values --------------------------------------------
 
 
-try.one <- oldsvp_ao %>% 
+df_fix_one <- df_impute %>% 
   mutate(across(where(is.numeric), ~replace_na(.x, 1)))
 
-try.two <- oldsvp_ao %>% 
+df_fix_two <- df_impute %>% 
   mutate(across(where(is.numeric), ~replace_na(.x, 2)))
 
 
 # Imputation with mean values ---------------------------------------------
 
 
-mean_imp_oldsvp_marg <- oldsvp_marg %>%   # filters only groups that have a complete set of years
+mean_imp_oldsvp_marg <- df_impute %>%
   group_by(muni_key) %>%
-  mutate(across(.cols = -c('muni_name','id', 'year'),
+  mutate(across(.cols = -c('id', 'year', "rs7", "hubdist100", "east_ger"),
                 .fns = 
                   ~ case_when(
                     is.na(.) ~ mean(., na.rm = T), # replaces NAs with mean of group

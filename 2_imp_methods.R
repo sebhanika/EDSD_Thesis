@@ -18,6 +18,7 @@ library(robustbase)
 library(missRanger)
 library(mice)
 library(broom)
+library(stargazer)
 
 # source functions from functions Module
 source('0_functions_module.R')
@@ -129,16 +130,82 @@ df_impute <- oldsvp_ao %>%
 
 # Imputation with fixed values --------------------------------------------
 
-
+#imputate, replace NAs with 1
 df_fix_one <- df_impute %>% 
   mutate(across(where(is.numeric), ~replace_na(.x, 1)))
 
+# replce Nas with 2
 df_fix_two <- df_impute %>% 
   mutate(across(where(is.numeric), ~replace_na(.x, 2)))
 
 
-# Imputation with mean values ---------------------------------------------
+# calculate growth rates and shares, reshape dataframe IMP 1
+df_fix_one_calc <- df_fix_one %>% 
+  pivot_longer(cols = -c(id, year, muni_key, rs7, hubdist100, east_ger),
+               names_to = c('sex', 'age', 'type'),
+               names_sep = '_') %>% 
+  arrange(muni_key, year) %>%                                                             
+  mutate(type = replace_na(type, 'r')) %>% # for regular employment
+  group_by(muni_key, year) %>% 
+  mutate(share = value/value[sex == 'total' & age == 'total' & type == 'r']) %>%  # calculate share of workforce
+  #calculate growth rates
+  group_by(muni_key, sex, age, type) %>% 
+  mutate(grw = value - lag(value, n = 10),# absolute growth in employment numbers
+         grw_p = (grw/lag(value, n = 10))*100, # relative growth
+         grw_sh = (share - lag(share, n = 10))*100) %>% # change in share of employment
+  
+  # cleaning: replace NaN and Inf, faster than case_when
+  mutate(grw_p = if_else(is.nan(grw_p), 0, grw_p), 
+         grw_p = if_else(is.infinite(grw_p), 0, grw_p)) %>% 
+  pivot_wider(names_sep = '_', 
+              values_from = c('value', 'grw', 'grw_p', 'share', 'grw_sh'),
+              names_from = c('sex', 'age', 'type'))
 
+
+# calculate growth rates and shares, reshape dataframe IMP 2
+df_fix_two_calc <- df_fix_two %>% 
+  pivot_longer(cols = -c(id, year, muni_key, rs7, hubdist100, east_ger),
+               names_to = c('sex', 'age', 'type'),
+               names_sep = '_') %>% 
+  arrange(muni_key, year) %>%                                                             
+  mutate(type = replace_na(type, 'r')) %>% # for regular employment
+  group_by(muni_key, year) %>% 
+  mutate(share = value/value[sex == 'total' & age == 'total' & type == 'r']) %>%  # calculate share of workforce
+  #calculate growth rates
+  group_by(muni_key, sex, age, type) %>% 
+  mutate(grw = value - lag(value, n = 10),# absolute growth in employment numbers
+         grw_p = (grw/lag(value, n = 10))*100, # relative growth
+         grw_sh = (share - lag(share, n = 10))*100) %>% # change in share of employment
+  
+  # cleaning: replace NaN and Inf, faster than case_when
+  mutate(grw_p = if_else(is.nan(grw_p), 0, grw_p), 
+         grw_p = if_else(is.infinite(grw_p), 0, grw_p)) %>% 
+  pivot_wider(names_sep = '_', 
+              values_from = c('value', 'grw', 'grw_p', 'share', 'grw_sh'),
+              names_from = c('sex', 'age', 'type'))
+
+
+# run simple robust regression IMP 1
+fix_one_model <- lmrob(grw_p_total_total_r ~ grw_sh_total_65older_r +
+                          rs7 +
+                          hubdist100 +
+                          east_ger, 
+                        data = df_fix_one_calc)
+
+summary(fix_one_model)
+
+
+# run simple robust regression IMP 2
+fix_two_model <- lmrob(grw_p_total_total_r ~ grw_sh_total_65older_r +
+                         rs7 +
+                         hubdist100 +
+                         east_ger, 
+                       data = df_fix_two_calc)
+
+summary(fix_two_model)
+
+
+# Imputation with mean values ---------------------------------------------
 
 mean_imp <- df_impute %>%
   group_by(muni_key) %>%
@@ -148,6 +215,36 @@ mean_imp <- df_impute %>%
                     is.na(.) ~ mean(., na.rm = T), # replaces NAs with mean of group
                     !is.na(.) ~ .))) #conditions if  not NA
 
+mean_imp_calc <- mean_imp %>% 
+  pivot_longer(cols = -c(id, year, muni_key, rs7, hubdist100, east_ger),
+               names_to = c('sex', 'age', 'type'),
+               names_sep = '_') %>% 
+  arrange(muni_key, year) %>%                                                             
+  mutate(type = replace_na(type, 'r')) %>% # for regular employment
+  group_by(muni_key, year) %>% 
+  mutate(share = value/value[sex == 'total' & age == 'total' & type == 'r']) %>%  # calculate share of workforce
+  #calculate growth rates
+  group_by(muni_key, sex, age, type) %>% 
+  mutate(grw = value - lag(value, n = 10),# absolute growth in employment numbers
+         grw_p = (grw/lag(value, n = 10))*100, # relative growth
+         grw_sh = (share - lag(share, n = 10))*100) %>% # change in share of employment
+  
+  # cleaning: replace NaN and Inf, faster than case_when
+  mutate(grw_p = if_else(is.nan(grw_p), 0, grw_p), 
+         grw_p = if_else(is.infinite(grw_p), 0, grw_p)) %>% 
+  pivot_wider(names_sep = '_', 
+              values_from = c('value', 'grw', 'grw_p', 'share', 'grw_sh'),
+              names_from = c('sex', 'age', 'type'))
+
+
+# run simple robust regression
+mean_imp_model <- lmrob(grw_p_total_total_r ~ grw_sh_total_65older_r +
+                          rs7 +
+                          hubdist100 +
+                          east_ger, 
+                        data = mean_imp_calc)
+
+summary(mean_imp_model)
 
 
 # Imputation missRanger and mice ------------------------------------------
@@ -170,10 +267,10 @@ names(imp_ranger) <-  c('test_a','test_b','test_c','test_d', 'test_e')
 # list2env(imp_ranger, envir=.GlobalEnv)
 
 
-# Saving and loading imputated datasets -----------------------------------
 
-# Save created imputation to Rdata file, igonore in Git. 
-# Done for quicker testing, delete later
+# Saving and loading imputed RF datasets ----------------------------------
+
+# Save created imputation to Rdata file, igonore in Git/delete later. 
 # 
 #  save(test_a, file = 'test_a.RData')
 #  save(test_b, file = 'test_b.RData')
@@ -183,7 +280,6 @@ names(imp_ranger) <-  c('test_a','test_b','test_c','test_d', 'test_e')
 
 ##### reload test files, everything else not needed
 
-# 
 # load('test_a.RData')
 # load('test_b.RData')
 # load('test_c.RData')
@@ -192,9 +288,6 @@ names(imp_ranger) <-  c('test_a','test_b','test_c','test_d', 'test_e')
 
 # create list of data frames, only if it was loaded or added to environment
 list_test_df <- list(test_a, test_b, test_c, test_d, test_e)
-
-
-
 
 # Running MICE models -----------------------------------------------------
 
@@ -221,7 +314,7 @@ imp_ranger_calc <- lapply(imp_ranger, function(x) x %>%
                             pivot_wider(names_sep = '_', 
                                         values_from = c('value', 'grw', 'grw_p', 'share', 'grw_sh'),
                                         names_from = c('sex', 'age', 'type'))
-)
+                          )
 
 
 # Run a linear model for each of the completed data sets                          
@@ -235,3 +328,27 @@ rf_mice_models <- lapply(imp_ranger_calc,
 summary(pooled_fit <- pool(rf_mice_models))
 
 
+
+# Create regression table LATEX -------------------------------------------
+# 
+# stargazer(base_model, modelA1, modelA2, modelA3, 
+#           type = "latex", 
+#           title="Regression Results",
+#           align=TRUE, 
+#           dep.var.labels=c("Employment change (perc)"),
+#           covariate.labels=c("Change in share of workers 55 to 65", 
+#                              "Change in share of workers 65 to retirement age", 
+#                              "Change in share of workers above retirement age",
+#                              "Share of young people in 2009",
+#                              "Production jobs 2009",
+#                              "Distance to large city", 
+#                              "Commuter to population ratio 2009", 
+#                              'Medium-sized city, urban',
+#                              'Small town, urban',
+#                              'Central City, rural',
+#                              'Medium-sized city, rural', 
+#                              'Small town, rural',  "West Germany"),
+#           column.labels = c("Base model", "ModelA1", "ModelA2"),
+#           omit.stat=c("LL","ser","f"), 
+#           no.space=TRUE)
+#

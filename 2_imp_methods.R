@@ -342,14 +342,11 @@ rf_model_texreg <- createTexreg(
         )
 
 
-nrow(drop_na(df_fix_one_calc))
-nrow(drop_na(df_fix_two_calc))
-nrow(drop_na(mean_imp_calc))
-nrow(drop_na(imp_ranger_calc[[1]]))
 
 
-# extract rsquares from the models
-gofs <- list("Nom. Obs." = ,
+# extract NObs and rsquares from the models
+gofs <- list("Num. Obs." = c(nrow(drop_na(df_fix_one_calc)), nrow(drop_na(df_fix_two_calc)), 
+                             nrow(drop_na(mean_imp_calc)),nrow(drop_na(imp_ranger_calc[[1]]))),
              "R^2" = c(fix_one_model_sum$r.squared, fix_two_model_sum$r.squared,
                mean_imp_model_sum$r.squared, rf_r2[1]))
 
@@ -361,13 +358,14 @@ coef_labels <- c('Intercept' ,
                  'Small town, urban', 'Central City, rural','Medium-sized city, rural',
                  'Small town, rural', "Distance to large city","West Germany")
 
-screenreg(l = list(fix_one_model, fix_two_model,
+texreg(l = list(fix_one_model, fix_two_model,
                    mean_imp_model, rf_model_texreg),
-          custom.model.names = model_labels,
-          custom.coef.names = coef_labels,
-          custom.gof.rows = rsquared,
-          include.nobs = T,
-          digits = 3
-          )
+       custom.model.names = model_labels,
+       custom.coef.names = coef_labels,
+       custom.gof.rows = gofs,
+       include.nobs = F,
+       dcolumn = T,
+       digits = 3
+       )
 
-
+?texreg

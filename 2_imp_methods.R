@@ -184,27 +184,6 @@ df_fix_two_calc <- df_fix_two %>%
               values_from = c('value', 'grw', 'grw_p', 'share', 'grw_sh'),
               names_from = c('sex', 'age', 'type'))
 
-
-# run simple robust regression IMP 1
-fix_one_model <- lmrob(grw_p_total_total_r ~ grw_sh_total_65older_r +
-                          rs7 +
-                          hubdist100 +
-                          east_ger, 
-                        data = df_fix_one_calc)
-
-summary(fix_one_model)
-
-
-# run simple robust regression IMP 2
-fix_two_model <- lmrob(grw_p_total_total_r ~ grw_sh_total_65older_r +
-                         rs7 +
-                         hubdist100 +
-                         east_ger, 
-                       data = df_fix_two_calc)
-
-summary(fix_two_model)
-
-
 # Imputation with mean values ---------------------------------------------
 
 mean_imp <- df_impute %>%
@@ -237,15 +216,6 @@ mean_imp_calc <- mean_imp %>%
               names_from = c('sex', 'age', 'type'))
 
 
-# run simple robust regression
-mean_imp_model <- lmrob(grw_p_total_total_r ~ grw_sh_total_65older_r +
-                          rs7 +
-                          hubdist100 +
-                          east_ger, 
-                        data = mean_imp_calc)
-
-summary(mean_imp_model)
-
 
 # Imputation missRanger and mice ------------------------------------------
 
@@ -262,21 +232,6 @@ imp_ranger <- replicate(5,missRanger(df_impute,
 
 # name create datasets for easier handling
 names(imp_ranger) <-  c('rf_imp_a','rf_imp_b','rf_imp_c','rf_imp_d', 'rf_imp_e')
-
-### save imputed data frames to working directory
-
-# lapply(names(imp_ranger), function(df) 
-#  saveRDS(imp_ranger[[df]], file = paste0(df, ".rds")))
-
-##### reload test files, everything else not needed
-
-#rf_imp_a <- readRDS(file = "rf_imp_a.rds") replicate if needed
-
-# create list of data frames, only if it was loaded or added to environment
-list_test_df <- list(rf_imp_a, rf_imp_b, rf_imp_c, rf_imp_d, rf_imp_e)
-
-
-# Running MICE models -----------------------------------------------------
 
 # based on the imputed values we can now calculate the growth rates and other variables
 # we need for the analysis, this needs to be done for all 5 dataframes. This process takes a while!
@@ -304,57 +259,115 @@ imp_ranger_calc <- lapply(imp_ranger, function(x) x %>%
                           )
 
 
+####
+
+# Save and load final calc files ------------------------------------------
+
+
+# temp saving these files and load again if needed, delete later
+# save(imp_ranger_calc, file = "imp_ranger_calc.RData")
+# save(df_fix_one_calc, file = "df_fix_one_calc.RData")
+# save(df_fix_two_calc, file = "df_fix_two_calc.RData")
+# save(mean_imp_calc, file = "mean_imp_calc.RData")
+
+
+
+# Running models ----------------------------------------------------------
+
+### With fix value imputation
+
+# run simple robust regression IMP 1
+fix_one_model <- lmrob(grw_p_total_total_r ~  
+                         grw_sh_total_65older_m +
+                         rs7 +
+                         hubdist100 +
+                         east_ger, 
+                       data = df_fix_one_calc)
+
+fix_one_model_sum <- summary(fix_one_model)
+
+
+# run simple robust regression IMP 2
+fix_two_model <- lmrob(grw_p_total_total_r ~  
+                         grw_sh_total_65older_m +
+                         rs7 +
+                         hubdist100 +
+                         east_ger, 
+                       data = df_fix_two_calc)
+
+fix_two_model_sum <- summary(fix_two_model)
+
+
+### with mean-value imputation
+
+# run simple robust regression
+mean_imp_model <- lmrob(grw_p_total_total_r ~  
+                          grw_sh_total_65older_m +
+                          rs7 +
+                          hubdist100 +
+                          east_ger, 
+                        data = mean_imp_calc)
+
+mean_imp_model_sum <- summary(mean_imp_model)
+
+
+### With Random forest MICE
+
 # Run a linear model for each of the completed data sets                          
 rf_mice_models <- lapply(imp_ranger_calc, 
-                         function(x) lmrob(grw_p_total_total_r ~ grw_sh_total_65older_r +
+                         function(x) lmrob(grw_p_total_total_r ~  
+                                             grw_sh_total_65older_m +
                                              rs7 + 
                                              hubdist100 +
                                              east_ger, 
                                            x))
-# Pool the results by mice
+
+# Pool the results for MICE
 rf_model_pool <- pool(rf_mice_models)
 rf_model_sum <- summary(rf_model_pool)
 
-
-convertModel <- function(model) {
-  tr <- createTexreg(
-    coef.names = rownames(model$coef), 
-    coef = model$coef$b.pool, 
-    se = model$coef$se.pool, 
-    pvalues = model$coef$pvalue.pool,
-    gof.names = c("R2","BIC (null)","N"), 
-    gof = c(model$r.squared, model$bic.null, model$n), 
-    gof.decimal = c(T,F,F)
-  )
-}
+# calculate GOFs (R squared)
+rf_r2 <- pool.r.squared(rf_model_pool, adjusted = F)
 
 
 
 # Create regression table LATEX -------------------------------------------
-#
+
+# turn pooled models into Texreg object
+rf_model_texreg <- createTexreg(
+        coef.names = as.character(rf_model_sum$term), # names of coefficients 
+        coef = rf_model_sum$estimate,  # values of coef
+        se = rf_model_sum$std.error, # stds of coef
+        pvalues = rf_model_sum$p.value # pvalues
+        )
 
 
-screenreg(l = list(fix_one_model, fix_two_model))
+nrow(drop_na(df_fix_one_calc))
+nrow(drop_na(df_fix_two_calc))
+nrow(drop_na(mean_imp_calc))
+nrow(drop_na(imp_ranger_calc[[1]]))
 
 
+# extract rsquares from the models
+gofs <- list("Nom. Obs." = ,
+             "R^2" = c(fix_one_model_sum$r.squared, fix_two_model_sum$r.squared,
+               mean_imp_model_sum$r.squared, rf_r2[1]))
 
 
+model_labels <- c("Fix model 1", "Fix model 2", "Mean Model", "RF Model")
+coef_labels <- c('Intercept' , 
+                 "Delta share of workers above 65 marg",
+                 'Medium-sized city, urban',
+                 'Small town, urban', 'Central City, rural','Medium-sized city, rural',
+                 'Small town, rural', "Distance to large city","West Germany")
 
+screenreg(l = list(fix_one_model, fix_two_model,
+                   mean_imp_model, rf_model_texreg),
+          custom.model.names = model_labels,
+          custom.coef.names = coef_labels,
+          custom.gof.rows = rsquared,
+          include.nobs = T,
+          digits = 3
+          )
 
-stargazer(fix_one_model, fix_two_model, mean_imp_model, rf_model_sum,
-          type = "latex",
-          title="Regression Results",
-          align=TRUE,
-          dep.var.labels=c("Employment change (perc)"),
-          covariate.labels=c("Change in share of workers above 65",
-                             'Medium-sized city, urban',
-                             'Small town, urban',
-                             'Central City, rural',
-                             'Medium-sized city, rural',
-                             'Small town, rural',
-                             "Distance to large city",
-                              "West Germany"),
-          column.labels = c("Fix model 1", "Fix model 2", "Mean Model", "RF Model"),
-          omit.stat=c("LL","ser","f"),
-          no.space=TRUE)
 

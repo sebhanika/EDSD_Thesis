@@ -18,7 +18,7 @@ library(robustbase)
 library(missRanger)
 library(mice)
 library(broom)
-library(stargazer)
+library(texreg)
 
 # source functions from functions Module
 source('0_functions_module.R')
@@ -261,33 +261,20 @@ imp_ranger <- replicate(5,missRanger(df_impute,
                         simplify = F)
 
 # name create datasets for easier handling
-names(imp_ranger) <-  c('test_a','test_b','test_c','test_d', 'test_e')
+names(imp_ranger) <-  c('rf_imp_a','rf_imp_b','rf_imp_c','rf_imp_d', 'rf_imp_e')
 
-# add tables to Global Environment for saving or closer inspection
-# list2env(imp_ranger, envir=.GlobalEnv)
+### save imputed data frames to working directory
 
-
-
-# Saving and loading imputed RF datasets ----------------------------------
-
-# Save created imputation to Rdata file, igonore in Git/delete later. 
-# 
-#  save(test_a, file = 'test_a.RData')
-#  save(test_b, file = 'test_b.RData')
-#  save(test_c, file = 'test_c.RData')
-#  save(test_d, file = 'test_d.RData')
-#  save(test_e, file = 'test_e.RData')
+# lapply(names(imp_ranger), function(df) 
+#  saveRDS(imp_ranger[[df]], file = paste0(df, ".rds")))
 
 ##### reload test files, everything else not needed
 
-# load('test_a.RData')
-# load('test_b.RData')
-# load('test_c.RData')
-# load('test_d.RData')
-# load('test_e.RData')
+#rf_imp_a <- readRDS(file = "rf_imp_a.rds") replicate if needed
 
 # create list of data frames, only if it was loaded or added to environment
-list_test_df <- list(test_a, test_b, test_c, test_d, test_e)
+list_test_df <- list(rf_imp_a, rf_imp_b, rf_imp_c, rf_imp_d, rf_imp_e)
+
 
 # Running MICE models -----------------------------------------------------
 
@@ -325,30 +312,49 @@ rf_mice_models <- lapply(imp_ranger_calc,
                                              east_ger, 
                                            x))
 # Pool the results by mice
-summary(pooled_fit <- pool(rf_mice_models))
+rf_model_pool <- pool(rf_mice_models)
+rf_model_sum <- summary(rf_model_pool)
+
+
+convertModel <- function(model) {
+  tr <- createTexreg(
+    coef.names = rownames(model$coef), 
+    coef = model$coef$b.pool, 
+    se = model$coef$se.pool, 
+    pvalues = model$coef$pvalue.pool,
+    gof.names = c("R2","BIC (null)","N"), 
+    gof = c(model$r.squared, model$bic.null, model$n), 
+    gof.decimal = c(T,F,F)
+  )
+}
 
 
 
 # Create regression table LATEX -------------------------------------------
-# 
-# stargazer(base_model, modelA1, modelA2, modelA3, 
-#           type = "latex", 
-#           title="Regression Results",
-#           align=TRUE, 
-#           dep.var.labels=c("Employment change (perc)"),
-#           covariate.labels=c("Change in share of workers 55 to 65", 
-#                              "Change in share of workers 65 to retirement age", 
-#                              "Change in share of workers above retirement age",
-#                              "Share of young people in 2009",
-#                              "Production jobs 2009",
-#                              "Distance to large city", 
-#                              "Commuter to population ratio 2009", 
-#                              'Medium-sized city, urban',
-#                              'Small town, urban',
-#                              'Central City, rural',
-#                              'Medium-sized city, rural', 
-#                              'Small town, rural',  "West Germany"),
-#           column.labels = c("Base model", "ModelA1", "ModelA2"),
-#           omit.stat=c("LL","ser","f"), 
-#           no.space=TRUE)
 #
+
+
+screenreg(l = list(fix_one_model, fix_two_model))
+
+
+
+
+
+
+stargazer(fix_one_model, fix_two_model, mean_imp_model, rf_model_sum,
+          type = "latex",
+          title="Regression Results",
+          align=TRUE,
+          dep.var.labels=c("Employment change (perc)"),
+          covariate.labels=c("Change in share of workers above 65",
+                             'Medium-sized city, urban',
+                             'Small town, urban',
+                             'Central City, rural',
+                             'Medium-sized city, rural',
+                             'Small town, rural',
+                             "Distance to large city",
+                              "West Germany"),
+          column.labels = c("Fix model 1", "Fix model 2", "Mean Model", "RF Model"),
+          omit.stat=c("LL","ser","f"),
+          no.space=TRUE)
+

@@ -126,8 +126,6 @@ df_impute <- oldsvp_ao %>%
   drop_na(hubdist100)
 
 
-
-
 # Imputation with fixed values --------------------------------------------
 
 #imputate, replace NAs with 1
@@ -270,6 +268,10 @@ imp_ranger_calc <- lapply(imp_ranger, function(x) x %>%
 # save(df_fix_two_calc, file = "df_fix_two_calc.RData")
 # save(mean_imp_calc, file = "mean_imp_calc.RData")
 
+# load("imp_ranger_calc.RData")
+# load("df_fix_one_calc.RData")
+# load("df_fix_two_calc.RData")
+# load("mean_imp_calc.RData")
 
 
 # Running models ----------------------------------------------------------
@@ -277,8 +279,8 @@ imp_ranger_calc <- lapply(imp_ranger, function(x) x %>%
 ### With fix value imputation
 
 # run simple robust regression IMP 1
-fix_one_model <- lmrob(grw_p_total_total_r ~  
-                         grw_sh_total_65older_m +
+fix_one_model <- lmrob(grw_p_total_total_r ~
+                         grw_sh_total_65older_r +
                          rs7 +
                          hubdist100 +
                          east_ger, 
@@ -286,13 +288,12 @@ fix_one_model <- lmrob(grw_p_total_total_r ~
 
 fix_one_model_sum <- summary(fix_one_model)
 
-
 # run simple robust regression IMP 2
 fix_two_model <- lmrob(grw_p_total_total_r ~  
-                         grw_sh_total_65older_m +
+                         grw_sh_total_65older_r +
                          rs7 +
                          hubdist100 +
-                         east_ger, 
+                         east_ger,
                        data = df_fix_two_calc)
 
 fix_two_model_sum <- summary(fix_two_model)
@@ -302,7 +303,7 @@ fix_two_model_sum <- summary(fix_two_model)
 
 # run simple robust regression
 mean_imp_model <- lmrob(grw_p_total_total_r ~  
-                          grw_sh_total_65older_m +
+                          grw_sh_total_65older_r +
                           rs7 +
                           hubdist100 +
                           east_ger, 
@@ -310,16 +311,15 @@ mean_imp_model <- lmrob(grw_p_total_total_r ~
 
 mean_imp_model_sum <- summary(mean_imp_model)
 
-
 ### With Random forest MICE
 
 # Run a linear model for each of the completed data sets                          
 rf_mice_models <- lapply(imp_ranger_calc, 
-                         function(x) lmrob(grw_p_total_total_r ~  
-                                             grw_sh_total_65older_m +
-                                             rs7 + 
+                         function(x) lmrob(grw_p_total_total_r ~
+                                             grw_sh_total_65older_r +
+                                             rs7 +
                                              hubdist100 +
-                                             east_ger, 
+                                             east_ger,
                                            x))
 
 # Pool the results for MICE
@@ -353,7 +353,7 @@ gofs <- list("Num. Obs." = c(nrow(drop_na(df_fix_one_calc)), nrow(drop_na(df_fix
 
 model_labels <- c("Fix model 1", "Fix model 2", "Mean Model", "RF Model")
 coef_labels <- c('Intercept' , 
-                 "Delta share of workers above 65 marg",
+                 "Delta share of workers 65+",
                  'Medium-sized city, urban',
                  'Small town, urban', 'Central City, rural','Medium-sized city, rural',
                  'Small town, rural', "Distance to large city","West Germany")
@@ -368,4 +368,3 @@ texreg(l = list(fix_one_model, fix_two_model,
        digits = 3
        )
 
-?texreg

@@ -1,10 +1,10 @@
 
 # Title: EDSD Thesis 2021/22
-# Topic: Code for Imputation
+# Topic: Testing different Imputation Methods
 # Date: 21/06/2022
 
-# In this script I am creaating an example of MICE Random Forest imputation on my dataset.
-# I construct a dataset with a few relevant variabele for my analysis and use robust regression
+# In this script I am creating an example of MICE Random Forest imputation on my dataset.
+# I construct a dataset with a few relevant variables for my analysis and use robust regression
 # to see how the imputed dataset behave. The goal is to do the same with mean value imputation
 # and imputation using fixed values.
 

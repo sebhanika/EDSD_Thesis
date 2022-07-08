@@ -4,15 +4,14 @@
 # Author: Sebstian Hanika
 # Date: 07/03/2022
 
-# This file contains self-defined functions used for my EDSD thesis
+# This file contains self-defined functions and settings used for my EDSD thesis
+# This includes custom summary statistics and GGPLOT themes as well as my database loading instructions
 
 
 # small functions that help or avoid masking errors
 filter <- dplyr::filter    #EDIT
 select <- dplyr::select
 `%!in%` = Negate(`%in%`) # function needed for later 
-
-
 
 # GGplot2 settings --------------------------------------------------------
 

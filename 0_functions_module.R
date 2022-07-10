@@ -11,6 +11,7 @@
 # small functions that help or avoid masking errors
 filter <- dplyr::filter    #EDIT
 select <- dplyr::select
+summarize <- dplyr::summarize
 `%!in%` = Negate(`%in%`) # function needed for later 
 
 # GGplot2 settings --------------------------------------------------------

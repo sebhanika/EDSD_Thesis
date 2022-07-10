@@ -16,7 +16,6 @@ require(RPostgreSQL)
 library(robustbase)
 library(missRanger)
 library(mice)
-library(broom)
 library(texreg)
 
 # source functions/settings from functions Module
@@ -29,18 +28,14 @@ options(scipen=999) # disable scientific notation
 ### Query all employment tables from MT database, settings defined in 'functions_module'
 ### only found in the 'public schema' 
 
-# specificng which tables to query from the database
-table_list <- c("ref_regiostar7", "gs2019_oldsvp_ao",
-                "gs2019_oldsvp_marg","gs2019_pop_muni")
 
-tbl_list <- lapply(table_list, function(t) tbl(con, t))
+tbl_list <- lapply(tableList, function(t) tbl(con, t))
 
 # collect tables to tibble and trim white spaces
 dfList <- lapply(tbl_list, function(t) collect(t) %>% 
                    mutate(across(where(is.character), str_trim)))
 
 # set shorter names for tables
-names_df <- c("muni_ref", "oldsvp_ao", "oldsvp_marg", "pop_tot")
 dfList <- setNames(dfList, names_df)
 
 # add tables to Global Environment
@@ -51,27 +46,94 @@ list2env(dfList, envir=.GlobalEnv)
 tbl_dist100pop <- tbl(con, in_schema('gis', 'pop100tsd_dist_db'))
 # distance hub table, distance to large city
 hub_dist100pop <- tbl_dist100pop %>%
-  collect() %>%
-  mutate(across(where(is.character), str_trim)) %>%
-  select(c(5,6,19:20)) %>%
-  rename(muni_key = ags, muni_name = gen, hubdist100 = hubdist) %>%
-  mutate(hubdist100= (hubdist100/1000)*1.2)
+  collect() 
 
 
 # Data prep ---------------------------------------------------------------
 
+# used for filtering east german municipalities
 east_germany <- paste(c('^12', '^13', '^14', '^15', '^16'), collapse = '|')
+
+# prep hub_dist populaiton table,
+hub_dist100pop <- hub_dist100pop %>%
+  mutate(across(where(is.character), str_trim)) %>%
+  select(c(5,19:20)) %>%
+  rename(muni_key = ags, hubdist100 = hubdist) %>%
+  mutate(hubdist100= (hubdist100/1000)*1.2)
+
+
+work_age <- c("15to18","18to20", "20to25", "25to30", "30to35", "35to40", "40to45", "45to50", "50to55", "55to60", "60to65")
+
+
+working_pop <- pop_age %>% 
+  filter(year %in% 2009:2019) %>% 
+  mutate(across(where(is.numeric), ~replace_na(.x, 0))) %>% 
+  pivot_longer(cols = -c(1:3),
+               names_sep = "_",
+               names_to = c("sex", "age")) %>% 
+  filter(age %in% work_age) %>% 
+  group_by(muni_key, year, sex) %>% 
+  summarize(across(.cols = value,
+                          .fns = ~sum(.x)))
+  
+
+
+
+
+
+# calculate commuters -> join geovaraibles later
+commuters <- oldsvp_ao %>%
+  select(c(1:4)) %>%
+  left_join(select(svp_ao, "inbound_commuter", "id"), by = "id") %>%
+  left_join(select(svp_wo, "outbound_commuter", "id"), by = "id") %>%
+  left_join(select(working_pop, "t_workpop", "id"), by = "id") %>%
+  mutate(com_ratio = inbound_commuter-outbound_commuter,
+         com_ratio_pop = (com_ratio/t_workpop)*100)
+
+
+
+# calculating dominant economic sector per municipalites
+econ_profile <- oldsvp_ao %>%
+  select(c(2:3, 5)) %>%
+  left_join(econ_ao, by = "id") %>%
+  mutate(agri_p = (agri/total_total)*100, 
+         prod_p = (production/total_total)*100,
+         trade_p = (trade_transport/total_total)*100,
+         service_p = (other_services/total_total)*100) %>%
+  group_by(year) %>%
+  mutate(mean_agri_p = mean(agri_p, na.rm = T),
+         mean_prod_p = mean(prod_p, na.rm = T),
+         mean_trade_p = mean(trade_p, na.rm = T),
+         mean_service_p = mean(service_p, na.rm = T)) %>%
+  ungroup() %>%
+  mutate(dom_sec = with(., case_when( 
+    (agri_p > prod_p & agri_p > trade_p & agri_p > service_p) ~ 'agri',
+    (prod_p > agri_p & prod_p > trade_p & prod_p > service_p) ~ 'production',
+    (trade_p > agri_p & trade_p > prod_p & trade_p > service_p) ~ 'trade_transport',
+    (service_p > agri_p & service_p > prod_p & service_p > trade_p) ~ 'services'
+  ))) %>%
+  mutate(dom_sec = as.factor(dom_sec))
+
+
+
+
+
+### Combine additonal geo and econ variables 
 
 # create factors for muni_ref and add east german variable
 # rs7 is regiostar7 classification 
-
-geo_vars <- muni_ref %>%
-  left_join(select(hub_dist100pop, "hubname", "hubdist100", "muni_key"), by = "muni_key") %>%
+geo_econ_vars <- muni_ref %>%
+  left_join(hub_dist100pop, by = "muni_key") %>%
   mutate(rs7 = as.factor(regiostar7)) %>% 
   mutate(east_ger = if_else(condition = str_detect(muni_key, east_germany) ,
                             true = 'East',
                             false =  'West')) %>% 
   select(-c(gen_rs7, regiostar7)) #drop unneccesary columns
+
+
+
+
+
 
 
 # filter population table
@@ -97,12 +159,12 @@ list2env(list_dfs_filt, envir=.GlobalEnv)
 rm(pop_tot, list_dfs_filt, tbl_list, dfList, list_dfs, tbl_dist100pop, hub_dist100pop)
 
 
-# Create dataframe to impute ----------------------------------------------
+# Construct dataframe for imputation --------------------------------------
 
-# select data for missing ranger imputation and model
-# total_total for total job growth
-# men_65older_m, men_65older, women_65older_m, women_65older for ageing
-# muni_ref, east-germany and hubdist as geo-variables
+# select variables for model:
+  # total_total for total job growth
+  # men_65older_m, men_65older, women_65older_m, women_65older for ageing
+  # muni_ref, east-germany and hubdist as geo-variables
 
 df_impute <- oldsvp_ao %>% 
   select(c('id', 'year', 'muni_key', 'total_total', 

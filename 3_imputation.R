@@ -62,77 +62,53 @@ hub_dist100pop <- hub_dist100pop %>%
   mutate(hubdist100= (hubdist100/1000)*1.2)
 
 
-work_age <- c("15to18","18to20", "20to25", "25to30", "30to35", "35to40", "40to45", "45to50", "50to55", "55to60", "60to65")
+## calculate working age population, requires reshaping of large dataframe
 
+work_age <- c('15to18','18to20', '20to25', '25to30', '30to35', '35to40',
+              '40to45', '45to50', '50to55', '55to60', '60to65')
 
 working_pop <- pop_age %>% 
   filter(year %in% 2009:2019) %>% 
-  mutate(across(where(is.numeric), ~replace_na(.x, 0))) %>% 
+  mutate(across(where(is.numeric), ~replace_na(.x, 0))) %>% # NAs here were incorrectly loaded, should be zeros
   pivot_longer(cols = -c(1:3),
-               names_sep = "_",
-               names_to = c("sex", "age")) %>% 
-  filter(age %in% work_age) %>% 
-  group_by(muni_key, year, sex) %>% 
+               names_sep = '_',
+               names_to = c('sex', 'age')) %>% 
+  filter(age %in% work_age, sex == 'total') %>% # if sex-specific is required, change here!
+  group_by(id) %>% 
   summarize(across(.cols = value,
-                          .fns = ~sum(.x)))
+                          .fns = ~sum(.x))) %>% 
+  left_join(select(pop_tot, c('id', 'total')), by = 'id') %>%  # nas that are created will be filter out by pop_select
+  mutate(workPop_per = value/total) %>% 
+  rename(workPop = value) %>% 
+  select(-c(total))
   
 
-
-
-
-
 # calculate commuters -> join geovaraibles later
-commuters <- oldsvp_ao %>%
-  select(c(1:4)) %>%
-  left_join(select(svp_ao, "inbound_commuter", "id"), by = "id") %>%
-  left_join(select(svp_wo, "outbound_commuter", "id"), by = "id") %>%
-  left_join(select(working_pop, "t_workpop", "id"), by = "id") %>%
-  mutate(com_ratio = inbound_commuter-outbound_commuter,
-         com_ratio_pop = (com_ratio/t_workpop)*100)
+# has some missing values that need to be imputed! 
+commuters <- svp_ao %>%
+  filter(year %in% 2009:2019) %>% 
+  select(c(1, 10)) %>%
+  left_join(select(svp_wo, 'outbound_commuter', 'id'), by = 'id') 
 
 
-
-# calculating dominant economic sector per municipalites
-econ_profile <- oldsvp_ao %>%
-  select(c(2:3, 5)) %>%
-  left_join(econ_ao, by = "id") %>%
-  mutate(agri_p = (agri/total_total)*100, 
-         prod_p = (production/total_total)*100,
-         trade_p = (trade_transport/total_total)*100,
-         service_p = (other_services/total_total)*100) %>%
-  group_by(year) %>%
-  mutate(mean_agri_p = mean(agri_p, na.rm = T),
-         mean_prod_p = mean(prod_p, na.rm = T),
-         mean_trade_p = mean(trade_p, na.rm = T),
-         mean_service_p = mean(service_p, na.rm = T)) %>%
-  ungroup() %>%
-  mutate(dom_sec = with(., case_when( 
-    (agri_p > prod_p & agri_p > trade_p & agri_p > service_p) ~ 'agri',
-    (prod_p > agri_p & prod_p > trade_p & prod_p > service_p) ~ 'production',
-    (trade_p > agri_p & trade_p > prod_p & trade_p > service_p) ~ 'trade_transport',
-    (service_p > agri_p & service_p > prod_p & service_p > trade_p) ~ 'services'
-  ))) %>%
-  mutate(dom_sec = as.factor(dom_sec))
-
-
-
-
-
-### Combine additonal geo and econ variables 
+### Combine additonal geo and econ variables
 
 # create factors for muni_ref and add east german variable
 # rs7 is regiostar7 classification 
-geo_econ_vars <- muni_ref %>%
-  left_join(hub_dist100pop, by = "muni_key") %>%
-  mutate(rs7 = as.factor(regiostar7)) %>% 
-  mutate(east_ger = if_else(condition = str_detect(muni_key, east_germany) ,
-                            true = 'East',
-                            false =  'West')) %>% 
-  select(-c(gen_rs7, regiostar7)) #drop unneccesary columns
-
-
-
-
+geo_econ_vars <-  oldsvp_ao %>% # oldsvp_ao as basis for joins to avoid NAs
+  
+  select(c(1,3,4)) %>% 
+  # join commuting data
+  left_join(commuters, by = 'id') %>% 
+  # join working age population data
+  left_join(working_pop, by = 'id') %>% 
+  # join spatial typology
+  left_join(select(muni_ref, c('muni_key', 'regiostar7')), by = 'muni_key') %>% 
+  rename(rs7 = regiostar7) %>% 
+  # join distance to large labor market
+  left_join(hub_dist100pop, by = 'muni_key') %>%
+  # assign east/west german variables
+  mutate(east_ger = if_else(str_detect(muni_key, east_germany),'East', 'West'))
 
 
 
@@ -147,7 +123,7 @@ pop_select <- pop_tot %>%
   ungroup()
 
 # list of data frames to filter small municipalities
-list_dfs <- listn(oldsvp_ao, oldsvp_marg)
+list_dfs <- listn(oldsvp_ao, oldsvp_marg, geo_econ_vars)
 
 # apply filter to all data frames
 list_dfs_filt <- lapply(list_dfs, filter, id %in% pop_select$id)
@@ -155,31 +131,47 @@ list_dfs_filt <- lapply(list_dfs, filter, id %in% pop_select$id)
 # add tables to Global Environment
 list2env(list_dfs_filt, envir=.GlobalEnv)
 
-# remove unwanted variables
-rm(pop_tot, list_dfs_filt, tbl_list, dfList, list_dfs, tbl_dist100pop, hub_dist100pop)
 
+### Some house-cleaning:
+# remove unwanted variables
+rm(pop_tot, list_dfs_filt, tbl_list, dfList, list_dfs, tbl_dist100pop, 
+   hub_dist100pop, muni_ref, econ_ao, svp_ao, svp_ao, pop_age, working_pop, arbl)
+# free unused memory
+gc() 
 
 # Construct dataframe for imputation --------------------------------------
 
-# select variables for model:
-  # total_total for total job growth
-  # men_65older_m, men_65older, women_65older_m, women_65older for ageing
-  # muni_ref, east-germany and hubdist as geo-variables
+
+# Combine dataframe with employment variables, as well as controll variables
 
 df_impute <- oldsvp_ao %>% 
-  select(c('id', 'year', 'muni_key', 'total_total', 
-           'total_65older', 'total_65olderstand', 
-           'men_65older', 'men_65olderstand',
-           'women_65older', 'women_65olderstand')) %>% 
-  # join marginal emplyoemtn variables
-  left_join(select(oldsvp_marg, c('id', 'year', 'muni_key', 'total_total_m', 
-                                  'total_65older_m', 'total_65olderstand_m',
-                                  'men_65older_m', 'men_65olderstand_m',
-                                  'women_65older_m', 'women_65olderstand_m')),
-            by = c('id', 'year', 'muni_key')) %>%  
+  # join marginal employment variables
+  left_join(select(oldsvp_marg, -c("muni_name")), by = c('id', 'year', 'muni_key')) %>%  
   # join geovariables
-  left_join(select(geo_vars, c('muni_key', 'rs7',
-                               'east_ger', 'hubdist100')),
-            by = 'muni_key') %>% 
-  drop_na(hubdist100)
+  left_join(geo_econ_vars,by = c('id', 'year', 'muni_key')) %>% 
+  drop_na(hubdist100) # drop one city without distance, is a municipal reform problem
+
+
+
+
+# Run imputation ----------------------------------------------------------
+
+# 10 times
+
+# Generate 5 complete data sets with imputated values
+imp_ranger <- replicate(2,missRanger(df_impute, 
+                                     formula = .-muni_key-year-id-rs7-hubdist100-east_ger-muni_name-hubname #exclude
+                                     ~ 
+                                       .-muni_key-year-id-rs7-hubdist100-east_ger-muni_name-hubname,
+                                     splitrule = 'extratrees', 
+                                     maxiter = 5,
+                                     num.trees = 10,
+                                     pmm.k = 3), # needed to avoid decimal values
+                        simplify = F)
+
+
+# Export to database ------------------------------------------------------
+
+
+
 

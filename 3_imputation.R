@@ -187,7 +187,9 @@ imp_ranger <- replicate(n,missRanger(df_impute,
                         simplify = F)
 
 
-# Export to database ------------------------------------------------------
+
+# Export Imputation to database -------------------------------------------
+
 
 names_imp_df <- paste0("rf_imp_", 1:n)
 names(imp_ranger) <-  names_imp_df
@@ -198,48 +200,97 @@ names(imp_ranger) <-  names_imp_df
  # saveRDS(imp_ranger[[df]], file = paste0(df, ".rds")))
 
 
-
-# uploads dataframew to Table
+# uploads data frame to Table
 for (i in 1:length(names_imp_df)){
   dbWriteTable(con, name = paste0("rf_imp_", i), imp_ranger[[i]], row.names=FALSE, overwrite=TRUE)
 }
   
+## move to edsd schema, bug prevents it from working in the dbWriteTable function
 
-# move to edsd schema, bug prevents it from working in the dbWriteTable function
+sql_alter <- "" # empty string to store resutls in
 
-# 
-# sql_move2 <- NULL
-# for (i in 1:length(names_imp_df)){
-#   
-#   sql_move2 <- c(sql_move2, paste0("ALTER TABLE rf_imp_",i," SET SCHEMA edsd;"))
-# }
-# 
-# 
-# try1 <- paste0("ALTER TABLE rf_imp_",i," SET SCHEMA edsd;")
+for (i in 1:length(names_imp_df)){
+  
+  x <- paste0("ALTER TABLE rf_imp_",i," SET SCHEMA edsd;")
+  sql_alter <- paste(sql_alter, x)
+}
+sql_alter
 
-
+dbGetQuery(con, sql_alter)
 
 
-sql_move <- "ALTER TABLE rf_imp_1
-  SET SCHEMA edsd;
-  ALTER TABLE rf_imp_2
-  SET SCHEMA edsd;
-  ALTER TABLE rf_imp_3
-  SET SCHEMA edsd;
-  ALTER TABLE rf_imp_4
-  SET SCHEMA edsd;
-  ALTER TABLE rf_imp_5
-  SET SCHEMA edsd;
-  ALTER TABLE rf_imp_6
-  SET SCHEMA edsd;
-  ALTER TABLE rf_imp_7
-  SET SCHEMA edsd;
-  ALTER TABLE rf_imp_8
-  SET SCHEMA edsd;
-  ALTER TABLE rf_imp_9
-  SET SCHEMA edsd;
-  ALTER TABLE rf_imp_10
-  SET SCHEMA edsd;"
 
 
-dbGetQuery(con, sql_move)
+# Calculate model variables -----------------------------------------------
+
+### loading imputation variabel from database, all tables from edsd schema
+tbl_list_imp <- lapply(names_imp_df, function(t) tbl(con, in_schema('edsd', t)))
+
+# collect tables to tibble and trim white spaces
+df_imps <- lapply(tbl_list_imp, function(t) collect(t) %>% 
+                   mutate(across(where(is.character), str_trim))) #sometimes postgresql adds whitespace?
+
+# set shorter names for tables
+df_imps <- setNames(df_imps, names_imp_df)
+
+# add tables to Global Environment
+#list2env(df_imps, envir=.GlobalEnv)
+
+
+
+### Calculation to reshape data frame
+
+# reshaping data frames and calculating growth rates etc.
+# takes a long time
+
+imp_ranger_calc <- lapply(imp_ranger, function(x) x %>% 
+                            pivot_longer(cols = -c(id, year, muni_key, muni_name, rs7, inbound_commuter,
+                                                   hubdist100, outbound_commuter, workPop, workPop_per, hubname, east_ger),
+                                         names_to = c('sex', 'age', 'type'), names_sep = '_') %>% 
+                            arrange(muni_key, year) %>%                                                             
+                            mutate(type = replace_na(type, 'r')) %>% # for regular employment
+                            group_by(muni_key, year) %>% 
+                            mutate(share = value/value[sex == 'total' & age == 'total' & type == 'r']) %>%  # calculate share of workforce
+                            #calculate growth rates
+                            group_by(muni_key, sex, age, type) %>% 
+                            mutate(grw = value - lag(value, n = 10),# absolute growth in employment numbers
+                                   grw_p = (grw/lag(value, n = 10))*100, # relative growth
+                                   grw_sh = (share - lag(share, n = 10))*100) %>% # change in share of employment
+                            # cleaning: replace NaN and Inf, faster than case_when
+                            mutate(grw_p = if_else(is.nan(grw_p), 0, grw_p), 
+                                   grw_p = if_else(is.infinite(grw_p), 0, grw_p))
+                          )
+
+
+# Export calc to database -------------------------------------------------
+
+
+
+names_imp_calc <- paste0("imp_calc", 1:n)
+names(imp_ranger_calc) <-  names_imp_calc
+
+
+## save data to rds as backup
+#lapply(names(imp_ranger_calc), function(df) 
+# saveRDS(imp_ranger_calc[[df]], file = paste0(df, ".rds")))
+
+
+# uploads data frame to Table
+for (i in 1:length(names_imp_df)){
+  dbWriteTable(con, name = paste0("imp_calc_", i), imp_ranger[[i]], row.names=FALSE, overwrite=TRUE)
+}
+
+## move to edsd schema, bug prevents it from working in the dbWriteTable function
+
+sql_alter2 <- "" # empty string to store resutls in
+
+for (i in 1:length(names_imp_df)){
+  
+  x <- paste0("ALTER TABLE imp_calc_",i," SET SCHEMA edsd;")
+  sql_alter2 <- paste(sql_alter2, x)
+}
+sql_alter2
+
+dbGetQuery(con, sql_alter2)
+
+

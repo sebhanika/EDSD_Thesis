@@ -112,7 +112,7 @@ geo_econ_vars <-  oldsvp_ao %>% # oldsvp_ao as basis for joins to avoid NAs
 
 
 
-# filter population table
+### filter population table
 # removing small data, only lose about 0.9% of total German population
 pop_select <- pop_tot %>% 
   rename(pop_total = total) %>%
@@ -128,14 +128,32 @@ list_dfs <- listn(oldsvp_ao, oldsvp_marg, geo_econ_vars)
 # apply filter to all data frames
 list_dfs_filt <- lapply(list_dfs, filter, id %in% pop_select$id)
 
+
+### filter municipalities with a lot of missing employment data,
+# limits effectivness of imputation (only drops 7 more municipalities)
+
+
+oldsvp_onlyNA <- oldsvp_ao %>% 
+  group_by(muni_key) %>% 
+  summarise(across(.cols = starts_with(c("total", "men", "women")),
+                   .fns = ~sum(is.na(.x)))) %>% 
+  filter(total_total < 8)
+
+# "01060068" "03151030" "03151035" "09372177" "09374146" "09574129" "15083580"
+
+
+list_dfs_filt2 <- lapply(list_dfs_filt, filter, muni_key %in% oldsvp_onlyNA$muni_key)
+
 # add tables to Global Environment
-list2env(list_dfs_filt, envir=.GlobalEnv)
+list2env(list_dfs_filt2, envir=.GlobalEnv)
+
 
 
 ### Some house-cleaning:
 # remove unwanted variables
 rm(pop_tot, list_dfs_filt, tbl_list, dfList, list_dfs, tbl_dist100pop, 
-   hub_dist100pop, muni_ref, econ_ao, svp_ao, svp_ao, pop_age, working_pop, arbl)
+   commuters, list_dfs_filt2, pop_select,  hub_dist100pop, muni_ref, 
+   econ_ao, svp_ao, svp_wo, pop_age, working_pop, arbl, oldsvp_onlyNA)
 # free unused memory
 gc() 
 
@@ -143,7 +161,6 @@ gc()
 
 
 # Combine dataframe with employment variables, as well as controll variables
-
 df_impute <- oldsvp_ao %>% 
   # join marginal employment variables
   left_join(select(oldsvp_marg, -c("muni_name")), by = c('id', 'year', 'muni_key')) %>%  
@@ -152,14 +169,11 @@ df_impute <- oldsvp_ao %>%
   drop_na(hubdist100) # drop one city without distance, is a municipal reform problem
 
 
-
-
 # Run imputation ----------------------------------------------------------
 
-# 10 times
-
-# Generate 5 complete data sets with imputated values
-imp_ranger <- replicate(2,missRanger(df_impute, 
+# 10 times,  with 10 trees
+# Generate 10 complete data sets with imputated values
+imp_ranger <- replicate(10,missRanger(df_impute, 
                                      formula = .-muni_key-year-id-rs7-hubdist100-east_ger-muni_name-hubname #exclude
                                      ~ 
                                        .-muni_key-year-id-rs7-hubdist100-east_ger-muni_name-hubname,
@@ -172,6 +186,9 @@ imp_ranger <- replicate(2,missRanger(df_impute,
 
 # Export to database ------------------------------------------------------
 
+#names(imp_ranger) <-  c('rf_imp_a','rf_imp_b','rf_imp_c','rf_imp_d', 'rf_imp_e')
+names(try_imp_ranger) <-  c('test_a','test_b')
 
+list2env(try_imp_ranger, envir=.GlobalEnv)
 
 

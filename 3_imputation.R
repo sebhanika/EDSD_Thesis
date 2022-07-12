@@ -78,8 +78,8 @@ working_pop <- pop_age %>%
   summarize(across(.cols = value,
                           .fns = ~sum(.x))) %>% 
   left_join(select(pop_tot, c('id', 'total')), by = 'id') %>%  # nas that are created will be filter out by pop_select
-  mutate(workPop_per = value/total) %>% 
-  rename(workPop = value) %>% 
+  mutate(workpop_per = value/total) %>% 
+  rename(workpop = value) %>% 
   select(-c(total))
   
 
@@ -172,8 +172,11 @@ df_impute <- oldsvp_ao %>%
 # Run imputation ----------------------------------------------------------
 
 # 10 times,  with 10 trees
-# Generate 10 complete data sets with imputated values
-imp_ranger <- replicate(10,missRanger(df_impute, 
+# Generate 10 complete data sets with imputed values
+
+n = 10 # number of replications
+
+imp_ranger <- replicate(n,missRanger(df_impute, 
                                      formula = .-muni_key-year-id-rs7-hubdist100-east_ger-muni_name-hubname #exclude
                                      ~ 
                                        .-muni_key-year-id-rs7-hubdist100-east_ger-muni_name-hubname,
@@ -186,9 +189,57 @@ imp_ranger <- replicate(10,missRanger(df_impute,
 
 # Export to database ------------------------------------------------------
 
-#names(imp_ranger) <-  c('rf_imp_a','rf_imp_b','rf_imp_c','rf_imp_d', 'rf_imp_e')
-names(try_imp_ranger) <-  c('test_a','test_b')
+names_imp_df <- paste0("rf_imp_", 1:n)
+names(imp_ranger) <-  names_imp_df
+ 
 
-list2env(try_imp_ranger, envir=.GlobalEnv)
+## save data to rds as backup
+#lapply(names(imp_ranger), function(df) 
+ # saveRDS(imp_ranger[[df]], file = paste0(df, ".rds")))
 
 
+
+# uploads dataframew to Table
+for (i in 1:length(names_imp_df)){
+  dbWriteTable(con, name = paste0("rf_imp_", i), imp_ranger[[i]], row.names=FALSE, overwrite=TRUE)
+}
+  
+
+# move to edsd schema, bug prevents it from working in the dbWriteTable function
+
+# 
+# sql_move2 <- NULL
+# for (i in 1:length(names_imp_df)){
+#   
+#   sql_move2 <- c(sql_move2, paste0("ALTER TABLE rf_imp_",i," SET SCHEMA edsd;"))
+# }
+# 
+# 
+# try1 <- paste0("ALTER TABLE rf_imp_",i," SET SCHEMA edsd;")
+
+
+
+
+sql_move <- "ALTER TABLE rf_imp_1
+  SET SCHEMA edsd;
+  ALTER TABLE rf_imp_2
+  SET SCHEMA edsd;
+  ALTER TABLE rf_imp_3
+  SET SCHEMA edsd;
+  ALTER TABLE rf_imp_4
+  SET SCHEMA edsd;
+  ALTER TABLE rf_imp_5
+  SET SCHEMA edsd;
+  ALTER TABLE rf_imp_6
+  SET SCHEMA edsd;
+  ALTER TABLE rf_imp_7
+  SET SCHEMA edsd;
+  ALTER TABLE rf_imp_8
+  SET SCHEMA edsd;
+  ALTER TABLE rf_imp_9
+  SET SCHEMA edsd;
+  ALTER TABLE rf_imp_10
+  SET SCHEMA edsd;"
+
+
+dbGetQuery(con, sql_move)

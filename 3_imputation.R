@@ -224,6 +224,9 @@ dbGetQuery(con, sql_alter)
 # Calculate model variables -----------------------------------------------
 
 ### loading imputation variabel from database, all tables from edsd schema
+n <- 10 # copied from above
+names_imp_df <- paste0("rf_imp_", 1:n)
+
 tbl_list_imp <- lapply(names_imp_df, function(t) tbl(con, in_schema('edsd', t)))
 
 # collect tables to tibble and trim white spaces
@@ -243,7 +246,7 @@ df_imps <- setNames(df_imps, names_imp_df)
 # reshaping data frames and calculating growth rates etc.
 # takes a long time
 
-imp_ranger_calc <- lapply(imp_ranger, function(x) x %>% 
+imp_ranger_calc <- lapply(df_imps, function(x) x %>% 
                             pivot_longer(cols = -c(id, year, muni_key, muni_name, rs7, inbound_commuter,
                                                    hubdist100, outbound_commuter, workPop, workPop_per, hubname, east_ger),
                                          names_to = c('sex', 'age', 'type'), names_sep = '_') %>% 
@@ -265,19 +268,13 @@ imp_ranger_calc <- lapply(imp_ranger, function(x) x %>%
 # Export calc to database -------------------------------------------------
 
 
-
 names_imp_calc <- paste0("imp_calc", 1:n)
 names(imp_ranger_calc) <-  names_imp_calc
 
 
-## save data to rds as backup
-#lapply(names(imp_ranger_calc), function(df) 
-# saveRDS(imp_ranger_calc[[df]], file = paste0(df, ".rds")))
-
-
 # uploads data frame to Table
-for (i in 1:length(names_imp_df)){
-  dbWriteTable(con, name = paste0("imp_calc_", i), imp_ranger[[i]], row.names=FALSE, overwrite=TRUE)
+for (i in 1:length(names_imp_calc)){
+  dbWriteTable(con, name = paste0("imp_calc_", i), imp_ranger_calc[[i]], row.names=FALSE, overwrite=TRUE)
 }
 
 ## move to edsd schema, bug prevents it from working in the dbWriteTable function
@@ -292,5 +289,4 @@ for (i in 1:length(names_imp_df)){
 sql_alter2
 
 dbGetQuery(con, sql_alter2)
-
 

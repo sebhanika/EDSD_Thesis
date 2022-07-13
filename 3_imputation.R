@@ -247,8 +247,14 @@ df_imps <- setNames(df_imps, names_imp_df)
 # takes a long time
 
 imp_ranger_calc <- lapply(df_imps, function(x) x %>% 
-                            pivot_longer(cols = -c(id, year, muni_key, muni_name, rs7, inbound_commuter,
-                                                   hubdist100, outbound_commuter, workPop, workPop_per, hubname, east_ger),
+                            select(-c(total_25to55, men_25to55, women_25to55, # drop unnecceary columns to make calc smoother
+                                      total_25to55_m, men_25to55_m, women_25to55_m,
+                                      hubname, muni_name)) %>% 
+                            mutate(total_aboveRet = total_65older - total_65olderstand, # calcualte employment above retrimen age
+                                   men_aboveRet = men_65older - men_65olderstand,
+                                   women_aboveRet = women_65older - men_65olderstand) %>%
+                            pivot_longer(cols = -c(id, year, muni_key, rs7, inbound_commuter,
+                                                   hubdist100, outbound_commuter, workPop, workPop_per, east_ger),
                                          names_to = c('sex', 'age', 'type'), names_sep = '_') %>% 
                             arrange(muni_key, year) %>%                                                             
                             mutate(type = replace_na(type, 'r')) %>% # for regular employment
@@ -261,7 +267,8 @@ imp_ranger_calc <- lapply(df_imps, function(x) x %>%
                                    grw_sh = (share - lag(share, n = 10))*100) %>% # change in share of employment
                             # cleaning: replace NaN and Inf, faster than case_when
                             mutate(grw_p = if_else(is.nan(grw_p), 0, grw_p), 
-                                   grw_p = if_else(is.infinite(grw_p), 0, grw_p))
+                                   grw_p = if_else(is.infinite(grw_p), 0, grw_p)) %>% 
+                            ungroup()
                           )
 
 

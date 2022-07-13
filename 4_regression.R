@@ -21,3 +21,27 @@ library(texreg)
 source('0_functions_module.R')
 
 options(scipen=999) # disable scientific notation 
+
+
+
+
+# Query data --------------------------------------------------------------
+
+
+### loading imputation variabel from database, all tables from edsd schema
+n <- 10 # copied from above
+names_imp_calc <- paste0("imp_calc_", 1:n)
+
+tbl_list_imp <- lapply(names_imp_calc, function(t) tbl(con, in_schema('edsd', t)))
+
+# collect tables to tibble and trim white spaces
+df_imps_calc <- lapply(tbl_list_imp, function(t) collect(t) %>% 
+                    mutate(across(where(is.character), str_trim))) #sometimes postgresql adds whitespace?
+
+# set shorter names for tables
+df_imps_calc <- setNames(df_imps_calc, names_imp_calc)
+
+
+
+
+

@@ -37,11 +37,11 @@ con <- dbConnect(drv, dbname = "MT",
                  host = "localhost", port = 5432,
                  user = "postgres", password = pw)
 
-tableList <- c("ref_regiostar7", "gs2019_age_groups", "gs2019_amk_arbl",
+tableList_old <- c("ref_regiostar7", "gs2019_age_groups", "gs2019_amk_arbl",
                "gs2019_amk_econ_ao", "gs2019_amk_svp_ao", "gs2019_amk_svp_wo",
                "gs2019_oldsvp_ao", "gs2019_oldsvp_marg","gs2019_pop_muni")
 
-names_df <- c("muni_ref", "pop_age", "arbl", "econ_ao", "svp_ao",
+names_df_old <- c("muni_ref", "pop_age", "arbl", "econ_ao", "svp_ao",
               "svp_wo", "oldsvp_ao", "oldsvp_marg", "pop_tot")
 
 

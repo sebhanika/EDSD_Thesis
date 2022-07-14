@@ -249,10 +249,15 @@ df_imps <- setNames(df_imps, names_imp_df)
 imp_ranger_calc <- lapply(df_imps, function(x) x %>% 
                             select(-c(total_25to55, men_25to55, women_25to55, # drop unnecceary columns to make calc smoother
                                       total_25to55_m, men_25to55_m, women_25to55_m,
-                                      hubname, muni_name)) %>% 
+                                      hubname, muni_name, workPop_per)) %>% 
                             mutate(total_aboveRet = total_65older - total_65olderstand, # calcualte employment above retrimen age
                                    men_aboveRet = men_65older - men_65olderstand,
-                                   women_aboveRet = women_65older - men_65olderstand) %>%
+                                   women_aboveRet = women_65older - men_65olderstand,
+                                   total_aboveRet_m = total_65older_m - total_65olderstand_m, # calcualte marg. employment above retrimen age
+                                   men_aboveRet_m = men_65older_m - men_65olderstand_m,
+                                   women_aboveRet_m = women_65older_m - men_65olderstand_m
+                                   
+                                   ) %>%
                             pivot_longer(cols = -c(id, year, muni_key, rs7, inbound_commuter,
                                                    hubdist100, outbound_commuter, workPop, workPop_per, east_ger),
                                          names_to = c('sex', 'age', 'type'), names_sep = '_') %>% 

@@ -59,13 +59,13 @@ try_imp_calc2009 <- try_imp_cal_1 %>%
          com_ratio_pop09 = (com_ratio09/workPop)*100,
          workPop_ln09 = log(workPop)) %>% 
   group_by(muni_key) %>% 
-  mutate(yg_work_sh = share[type == "r" & age == "below25" & sex == "total"]) %>%
+  mutate(yg_work_sh09 = share[type == "r" & age == "below25" & sex == "total"]) %>%
   ungroup() %>% 
-  select(muni_key, yg_work_sh, com_ratio_pop09, workPop_ln09) %>% 
+  select(muni_key, yg_work_sh09, com_ratio_pop09, workPop_ln09) %>% 
   distinct()
 
 
-
+## reshape data frame
 wide_df <- try_imp_cal_1 %>% 
   mutate(rs7 = as.factor(rs7)) %>% 
   filter(year == 2019) %>% 
@@ -78,36 +78,55 @@ wide_df <- try_imp_cal_1 %>%
 
 
 
-# tryin gmodels
+
+###### Models with employment change as dependent variable
+
+
+mod_base <- lmrob(grw_p_total_total_r ~ 
+                        rs7 + 
+                        hubdist100 + 
+                        com_ratio_pop09 +
+                        yg_work_sh09 +
+                        east_ger,
+                      data = wide_df)
+
+summary(mod_base)
+
+mod_A1 <- lmrob(grw_p_total_total_r ~ 
+                  grw_sh_total_aboveRet_r +
+                  rs7 +
+                        hubdist100 + 
+                        com_ratio_pop09 +
+                        yg_work_sh09 +
+                        east_ger,
+                      data = wide_df, k.max	= 300)
+
+summary(mod_A1)
+
+mod_A2 <- lmrob(grw_p_total_total_r ~ 
+                  grw_sh_total_aboveRet_m +
+                      rs7 + 
+                      hubdist100 + 
+                      com_ratio_pop09 +
+                      yg_work_sh09 +
+                      east_ger,
+                    data = wide_df)
+
+summary(mod_A2)
 
 
 
 
-try_mod <- lmrob(grw_p_total_total_r ~ 
-                   grw_sh_total_aboveRet_m +
-                   hubdist100 + 
-                   com_ratio_pop09 +
-                   east_ger,
-                 data = wide_df)
+model_labels <- c("Base", "A1", "A2")
 
 
-summary(try_mod)
+screenreg(l = list(mod_base, mod_A1 ,mod_A2),
+          custom.model.names = model_labels,
+       include.nobs = T,
+       dcolumn = T,
+       digits = 3
+)
 
-
-
-
-# 
-try_mod <- lmrob(grw_p_total_total_r ~ 
-                   grw_sh_women_aboveRet_m +
-                   hubdist100 + 
-                   com_ratio_pop09 +
-                   east_ger,
-                 data = wide_df)
-
-
-summary(try_mod)
-
-car::vif(try_mod)
 
 
 
@@ -116,31 +135,29 @@ car::vif(try_mod)
 ###### Models with ageing as dependet variable
 
 
-try_mod_base <- lmrob(grw_sh_total_aboveRet_m ~ 
-                        grw_p_total_total_m +
-                        rs7 + 
-                        hubdist100 + 
-                        com_ratio_pop09 +
-                        yg_work_sh +
-                        east_ger,
-                      data = wide_df)
-
-summary(try_mod_base)
 
 
-car::vif(try_mod_aboveret_r)
+mod_Age1 <- lmrob(grw_sh_total_aboveRet_r ~ 
+                    grw_p_total_total_r +
+                  rs7 +
+                  hubdist100 + 
+                  com_ratio_pop09 +
+                    yg_work_sh09 +
+                  east_ger,
+                data = wide_df, k.max	= 300)
 
+summary(mod_Age1)
 
+mod_Age2 <- lmrob(grw_sh_total_aboveRet_m ~ 
+                  grw_p_total_total_r +
+                  rs7 + 
+                  hubdist100 + 
+                  com_ratio_pop09 +
+                    yg_work_sh09 +
+                  east_ger,
+                data = wide_df, k.max = 300)
 
-
-
-
-
-
-
-
-
-
+summary(mod_Age2)
 
 
 
@@ -149,9 +166,7 @@ car::vif(try_mod_aboveret_r)
 
 
 
-
-
-
+cor(x = wide_df$grw_sh_women_total_r, y = wide_df$grw_sh_women_total_m)
 
 
 

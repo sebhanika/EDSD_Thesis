@@ -43,11 +43,9 @@ options(scipen=999) # disable scientific notation
 
 
 try_data_tbl <- tbl(con, in_schema('edsd', 'imp_calc_1'))
-# distance hub table, distance to large city
 try_imp_cal_1 <- try_data_tbl %>%
   collect() %>%
   mutate(across(where(is.character), str_trim))
-
 
 
 
@@ -69,7 +67,7 @@ try_imp_calc2009 <- try_imp_cal_1 %>%
 wide_df <- try_imp_cal_1 %>% 
   mutate(rs7 = as.factor(rs7)) %>% 
   filter(year == 2019) %>% 
-  select(-c(value, grw, inbound_commuter, outbound_commuter, workPop, workPop_per)) %>% 
+  select(-c(value, grw, inbound_commuter, outbound_commuter, workPop)) %>% 
   pivot_wider(names_sep = '_', 
               values_from = c('grw_p', 'share', 'grw_sh'),
               names_from = c('sex', 'age', 'type')) %>% 
@@ -77,96 +75,155 @@ wide_df <- try_imp_cal_1 %>%
 
 
 
+###### Models with ageing as dependet variable
 
 
-###### Models with employment change as dependent variable
 
-
-mod_base <- lmrob(grw_p_total_total_r ~ 
-                        rs7 + 
-                        hubdist100 + 
-                        com_ratio_pop09 +
-                        yg_work_sh09 +
-                        east_ger,
-                      data = wide_df)
+mod_base <- lmrob(grw_sh_total_aboveRet_total ~ 
+                    rs7 +
+                  east_ger,
+                data = wide_df, k.max	= 300)
 
 summary(mod_base)
-
-mod_A1 <- lmrob(grw_p_total_total_r ~ 
-                  grw_sh_total_aboveRet_r +
-                  rs7 +
-                        hubdist100 + 
-                        com_ratio_pop09 +
-                        yg_work_sh09 +
-                        east_ger,
-                      data = wide_df, k.max	= 300)
-
-summary(mod_A1)
-
-mod_A2 <- lmrob(grw_p_total_total_r ~ 
-                  grw_sh_total_aboveRet_m +
-                      rs7 + 
-                      hubdist100 + 
-                      com_ratio_pop09 +
-                      yg_work_sh09 +
-                      east_ger,
-                    data = wide_df)
-
-summary(mod_A2)
+car::vif(mod_base)
 
 
 
+mod_contA1 <- lmrob(grw_sh_total_aboveRet_total ~ 
+                    grw_p_total_total_r +
+                    hubdist100 + 
+                    com_ratio_pop09 +
+                    yg_work_sh09 +
+                    rs7 +
+                    east_ger,
+                  data = wide_df, k.max	= 300)
 
-model_labels <- c("Base", "A1", "A2")
+summary(mod_contA1)
+car::vif(mod_contA1)
 
 
-screenreg(l = list(mod_base, mod_A1 ,mod_A2),
+model_labels <- c("Base", "A1")
+
+sum_mod_base <- summary(mod_base)
+sum_mod_contA1 <- summary(mod_contA1)
+
+
+gofs <- list("R^2" = c(sum_mod_base$r.squared, sum_mod_contA1$r.squared))
+
+screenreg(l = list(mod_base, mod_contA1),
           custom.model.names = model_labels,
-       include.nobs = T,
-       dcolumn = T,
-       digits = 3
+          include.nobs = T,
+          dcolumn = T,
+          digits = 3,
+          custom.gof.rows = gofs
+          
 )
 
 
 
 
 
-
-###### Models with ageing as dependet variable
-
+# Model with marginal employment as dp  -----------------------------------
 
 
 
-mod_Age1 <- lmrob(grw_sh_total_aboveRet_r ~ 
+mod_marg <- lmrob(grw_sh_total_aboveRet_m ~ 
                     grw_p_total_total_r +
-                  rs7 +
-                  hubdist100 + 
-                  com_ratio_pop09 +
+                    hubdist100 + 
+                    com_ratio_pop09 +
                     yg_work_sh09 +
-                  east_ger,
-                data = wide_df, k.max	= 300)
+                    rs7 +
+                    east_ger,
+                  data = wide_df, k.max	= 300)
 
-summary(mod_Age1)
+summary(mod_marg)
+car::vif(mod_marg)
 
-mod_Age2 <- lmrob(grw_sh_total_aboveRet_m ~ 
-                  grw_p_total_total_r +
-                  rs7 + 
-                  hubdist100 + 
-                  com_ratio_pop09 +
+
+
+# Model with regular employment as dp -------------------------------------
+
+mod_reg <- lmrob(grw_sh_total_aboveRet_r ~ 
+                    grw_p_total_total_r +
+                    hubdist100 + 
+                    com_ratio_pop09 +
                     yg_work_sh09 +
-                  east_ger,
-                data = wide_df, k.max = 300)
+                    rs7 +
+                    east_ger,
+                  data = wide_df, k.max	= 300)
 
-summary(mod_Age2)
-
-
-
-
+summary(mod_reg)
+car::vif(mod_reg)
 
 
 
 
-cor(x = wide_df$grw_sh_women_total_r, y = wide_df$grw_sh_women_total_m)
+
+
+
+
+
+
+
+
+p <- try_imp_cal_1 %>% 
+  ungroup() %>% 
+  #filter(grw_sh < 60) %>% 
+  filter(age == "aboveRet", year == 2019, sex == "total", type != "total") %>%
+  ggplot(aes(x = as.factor(rs7), y = grw_sh, fill = type)) +
+  scale_y_continuous(limits = c(-10, 10))+
+  geom_boxplot()
+
+p
+
+
+
+
+wide_df %>% 
+  filter(grw_p_total_total_r < 250) %>% 
+  ggplot(aes(x =  grw_p_total_total_r , y =  share_total_aboveRet_r)) +
+  geom_point() +
+  geom_smooth(method = "lm")+
+  facet_wrap(~rs7, nrow = 3) +
+  labs(title ="Regular")
+
+
+
+wide_df %>% 
+  filter(grw_p_total_total_r < 250) %>% 
+  ggplot(aes(x =  grw_p_total_total_r , y =  share_total_aboveRet_m)) +
+  geom_point() +
+  geom_smooth(method = "lm")+
+  facet_wrap(~rs7, nrow = 3) +
+  labs(title = "Marginal")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -179,23 +236,26 @@ try_mod_l <- list(NULL)
 
 for (item in rs7_len){
   
-  try_mod_l[[item]] <- lmrob(grw_p_total_total_r ~ 
-                     grw_sh_total_aboveRet_r +
-                     yg_work_sh +
-                     hubdist100 + 
-                     com_ratio_pop09 +
-                     east_ger, data = subset(wide_df, rs7 == item)
-                     )
+  try_mod_l[[item]] <- lmrob(grw_sh_total_aboveRet_m ~ 
+                               grw_p_total_total_r +
+                               rs7 + 
+                               hubdist100 + 
+                               com_ratio_pop09 +
+                               yg_work_sh09 +
+                               east_ger,
+                             data = subset(wide_df, rs7 == item), k.max = 300)
+                     
 
 }
 
 
 mod_rs7 <- function (x) 
-  lmrob(grw_p_total_total_r ~ 
-          grw_sh_total_aboveRet_r +
-          yg_work_sh +
+  lmrob(grw_sh_total_aboveRet_m ~ 
+          grw_p_total_total_r +
+          rs7 + 
           hubdist100 + 
           com_ratio_pop09 +
+          yg_work_sh09 +
           east_ger, data = subset(wide_df, rs7 == x))
 
 
@@ -207,22 +267,19 @@ sum_test <- lapply(y_test, summary)
 
 
 
+
+
+
+
+cor(wide_df$grw_p_total_total_r, wide_df$grw_sh_total_aboveRet_total)
+
+
 # some plots for testing
 
 wide_df %>% 
-  filter(grw_p_total_total_r < 250,
-         grw_sh_total_aboveRet_m < 20) %>% 
-  ggplot(aes(x = grw_sh_men_aboveRet_m  , y = grw_p_total_total_r)) +
-  geom_point() +
-  geom_smooth(method = "lm")+
-  facet_wrap(~rs7, nrow = 3)
-
-
-
-wide_df %>% 
-  filter(grw_p_total_total_r < 250,
-         grw_sh_total_aboveRet_m < 20) %>% 
-  ggplot(aes(x = grw_sh_women_aboveRet_m  , y = grw_p_total_total_r)) +
+  filter(
+         grw_sh_total_aboveRet_total < 60) %>% 
+  ggplot(aes(x =  grw_sh_total_aboveRet_m , y =  grw_sh_total_aboveRet_total)) +
   geom_point() +
   geom_smooth(method = "lm")+
   facet_wrap(~rs7, nrow = 3)
@@ -233,13 +290,78 @@ wide_df %>%
 
 
 
-try_imp_cal_1 %>% 
-  ungroup() %>% 
-  filter(age == "aboveRet", year == 2019, sex != "total") %>%
-  ggplot(aes(x = as.factor(rs7), y = grw_p, fill = sex)) +
-  scale_y_continuous(limits = c(-1000, 1000))+
-  geom_boxplot()+
-  facet_wrap(~type)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Models with employment change as dependent variable ---------------------
+
+
+
+mod_base <- lmrob(grw_p_total_total_r ~ 
+                    rs7 + 
+                    hubdist100 + 
+                    com_ratio_pop09 +
+                    yg_work_sh09 +
+                    east_ger,
+                  data = wide_df, fast.s.large.n = Inf)
+
+summary(mod_base)
+
+mod_A1 <- lmrob(grw_p_total_total_r ~ 
+                  grw_sh_total_aboveRet_r +
+                  rs7 +
+                  hubdist100 + 
+                  com_ratio_pop09 +
+                  yg_work_sh09 +
+                  east_ger,
+                data = wide_df, k.max	= 300)
+
+summary(mod_A1)
+
+mod_A2 <- lmrob(grw_p_total_total_r ~ 
+                  grw_sh_total_aboveRet_r +
+                  grw_sh_total_aboveRet_m +
+                  rs7 + 
+                  hubdist100 + 
+                  com_ratio_pop09 +
+                  yg_work_sh09 +
+                  east_ger,
+                data = wide_df)
+
+summary(mod_A2)
+
+
+
+model_labels <- c("Base", "A1", "A2")
+
+
+screenreg(l = list(mod_base, mod_A1 ,mod_A2),
+          custom.model.names = model_labels,
+          include.nobs = T,
+          dcolumn = T,
+          digits = 3
+)
+
+
+
+
+
 
 
 

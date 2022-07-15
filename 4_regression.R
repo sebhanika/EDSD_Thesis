@@ -23,7 +23,6 @@ source('0_functions_module.R')
 options(scipen=999) # disable scientific notation 
 
 
-
 # Query data --------------------------------------------------------------
 
 ## loading imputation variabel from database, all tables from edsd schema
@@ -41,9 +40,9 @@ df_imps_calc <- setNames(df_imps_calc, names_imp_calc)
 
 
 
+# Loading test data -------------------------------------------------------
 
 
-### loading test data
 # 
 # try_data_tbl <- tbl(con, in_schema('edsd', 'imp_calc_1'))
 # try_imp_cal_1 <- try_data_tbl %>%
@@ -209,92 +208,88 @@ screenreg(l = list(model_base_texreg, model_A1_texreg, model_A2_texreg),
           include.nobs = F,
           dcolumn = T,
           digits = 3
-)
-
-
-###### Models with ageing as dependet variable
-
-
-
-
-
-
-
-mod_base <- lmrob(grw_sh_total_aboveRet_total ~ 
-                    rs7 +
-                  east_ger,
-                data = wide_df, k.max	= 300)
-
-summary(mod_base)
-car::vif(mod_base)
-
-
-
-mod_contA1 <- lmrob(grw_sh_total_aboveRet_total ~ 
-                    grw_p_total_total_r +
-                    hubdist100 + 
-                    com_ratio_pop09 +
-                    yg_work_sh09 +
-                    rs7 +
-                    east_ger,
-                  data = wide_df, k.max	= 300)
-
-summary(mod_contA1)
-car::vif(mod_contA1)
-
-
-model_labels <- c("Base", "A1")
-
-sum_mod_base <- summary(mod_base)
-sum_mod_contA1 <- summary(mod_contA1)
-
-
-gofs <- list("R^2" = c(sum_mod_base$r.squared, sum_mod_contA1$r.squared))
-
-screenreg(l = list(mod_base, mod_contA1),
-          custom.model.names = model_labels,
-          include.nobs = T,
-          dcolumn = T,
-          digits = 3,
-          custom.gof.rows = gofs
-          
-)
-
-
-
+          )
 
 
 # Model with marginal employment as dp  -----------------------------------
 
+ls_mod_marg <- lapply(df_models, 
+                         function(x) lmrob(grw_sh_total_aboveRet_m ~ 
+                                             hubdist100 + 
+                                             com_ratio_pop09 +
+                                             yg_work_sh09 +
+                                             rs7 +
+                                             east_ger+
+                                             grw_p_total_total_r,
+                                           data = x, k.max	= 300)
+                      )
 
+# Pool results and summarize for base model
+models_marg_pool <- pool(ls_mod_marg)
+models_marg_sum <- summary(models_marg_pool)
 
-mod_marg <- lmrob(grw_sh_total_aboveRet_m ~ 
-                    grw_p_total_total_r +
-                    hubdist100 + 
-                    com_ratio_pop09 +
-                    yg_work_sh09 +
-                    rs7 +
-                    east_ger,
-                  data = wide_df, k.max	= 300)
+models_marg_r2 <- pool.r.squared(models_marg_pool, adjusted = F)
 
-summary(mod_marg)
-car::vif(mod_marg)
+# turn pooled marginal employment models into Texreg object
 
+model_marg_texreg <- createTexreg(
+  coef.names = as.character(models_marg_sum$term), # names of coefficients 
+  coef = models_marg_sum$estimate,  # values of coef
+  se = models_marg_sum$std.error, # stds of coef
+  pvalues = models_marg_sum$p.value) # pvalues
 
 
 # Model with regular employment as dp -------------------------------------
 
-mod_reg <- lmrob(grw_sh_total_aboveRet_r ~ 
-                    grw_p_total_total_r +
-                    hubdist100 + 
-                    com_ratio_pop09 +
-                    yg_work_sh09 +
-                    rs7 +
-                    east_ger,
-                  data = wide_df, k.max	= 300)
 
-summary(mod_reg)
-car::vif(mod_reg)
+ls_mod_reg <- lapply(df_models, 
+                      function(x) lmrob(grw_sh_total_aboveRet_r ~ 
+                                          hubdist100 + 
+                                          com_ratio_pop09 +
+                                          yg_work_sh09 +
+                                          rs7 +
+                                          east_ger+
+                                          grw_p_total_total_r,
+                                        data = x, k.max	= 300)
+)
+
+# Pool results and summarize for base model
+models_reg_pool <- pool(ls_mod_reg)
+models_reg_sum <- summary(models_reg_pool)
+
+models_reg_r2 <- pool.r.squared(models_reg_pool, adjusted = F)
+
+# turn pooled regular employment models into Texreg object
+model_reg_texreg <- createTexreg(
+  coef.names = as.character(models_reg_sum$term), # names of coefficients 
+  coef = models_reg_sum$estimate,  # values of coef
+  se = models_reg_sum$std.error, # stds of coef
+  pvalues = models_reg_sum$p.value) # pvalues
+
+
+
+### Combine models in table
+
+# extract NObs and rsquares from the models
+gofs_B <- list("Num. Obs." = c(nobs.models, nobs.models),
+               "R-squared" = c(models_marg_r2[1], models_reg_r2[1]))
+
+
+model_B_labels <- c("Marginal", "Regular")
+coef_B_labels <- c('Intercept' , 
+                   'Medium-sized city, urban',
+                   'Small town, urban', 'Central City, rural','Medium-sized city, rural',
+                   'Small town, rural', "West Germany", "Distance to large city",
+                   'Comuter Ratio 2009', 'Share of young workers', 'Employment Growth')
+
+screenreg(l = list(model_marg_texreg, model_reg_texreg),
+          custom.model.names = model_B_labels,
+          custom.coef.names = coef_B_labels,
+          custom.gof.rows = gofs_B,
+          include.nobs = F,
+          dcolumn = T,
+          digits = 3
+)
 
 
 
@@ -305,6 +300,88 @@ car::vif(mod_reg)
 
 
 
+# Running model for each rs7 category -------------------------------------
+
+# create empty lists to store values in
+ls_texreg <- list()
+df_models_filt <- list()
+ls_mod_rs7 <- list()
+models_rs7_pool <- list()
+models_rs7_sum <- list()
+models_rs7_r2 <- list()
+
+# loop through rs7 cateogefores to calculate and pool all models
+for (i in 72:77){
+  
+      
+      df_models_filt[[i]] <- lapply(df_models, function(x) x %>%
+                                    filter(rs7 == i) %>% 
+                                    mutate(rs7 = as.integer(rs7))
+                                    )
+      
+      
+      ls_mod_rs7[[i]] <- lapply(df_models_filt[[i]], 
+                          function(x) lmrob(grw_sh_total_aboveRet_m ~ 
+                                              hubdist100 + 
+                                              com_ratio_pop09 +
+                                              yg_work_sh09 +
+                                              rs7 +
+                                              east_ger+
+                                              grw_p_total_total_r,
+                                            data = x, k.max	= 300)
+      )
+      
+
+      # pool models
+      models_rs7_pool[[i]] <- pool(ls_mod_rs7[[i]])
+      models_rs7_sum[[i]] <- summary(models_rs7_pool[[i]])
+      # calculate R squared
+      models_rs7_r2[[i]] <- pool.r.squared(models_rs7_pool[[i]], adjusted = F)
+
+
+      #create texreg object for each model
+      ls_texreg[[i]] <- createTexreg(
+        coef.names = as.character(models_rs7_sum[[i]]$term), # names of coefficients
+        coef = models_rs7_sum[[i]]$estimate,  # values of coef
+        se = models_rs7_sum[[i]]$std.error, # stds of coef
+        pvalues = models_rs7_sum[[i]]$p.value) # pvalues
+
+}
+
+
+### Remove empty element from lista
+ls_texreg <- ls_texreg[lengths(ls_texreg) > 0L]
+models_rs7_r2 <- models_rs7_r2[lengths(models_rs7_r2) > 0L]
+df_models_filt <- df_models_filt[lengths(df_models_filt) > 0L]
+
+# extract number of observations
+nob72 <- nrow(df_models_filt[[1]][[1]])
+nob73 <- nrow(df_models_filt[[2]][[1]])
+nob74 <- nrow(df_models_filt[[3]][[1]])
+nob75 <- nrow(df_models_filt[[4]][[1]])
+nob76 <- nrow(df_models_filt[[5]][[1]])
+nob77 <- nrow(df_models_filt[[6]][[1]])
+
+# creat gofs object
+gofs_rs <- list("Num. Obs." = c(nob72, nob73, nob74, nob75, nob76, nob77),
+               "R-squared" = c(models_rs7_r2[[1]][1], models_rs7_r2[[2]][1],
+                               models_rs7_r2[[3]][1], models_rs7_r2[[4]][1],
+                               models_rs7_r2[[4]][1], models_rs7_r2[[6]][1]))
+
+# create Texreg output
+screenreg(l = list(ls_texreg[[1]], ls_texreg[[2]], ls_texreg[[3]], 
+                   ls_texreg[[4]], ls_texreg[[5]], ls_texreg[[6]]),
+          include.nobs = F,
+          custom.gof.rows = gofs_rs,
+          dcolumn = T,
+          digits = 3
+)
+
+
+
+
+
+# Plots for checking results ----------------------------------------------
 
 
 p <- try_imp_cal_1 %>% 
@@ -316,8 +393,6 @@ p <- try_imp_cal_1 %>%
   geom_boxplot()
 
 p
-
-
 
 
 wide_df %>% 
@@ -337,170 +412,6 @@ wide_df %>%
   geom_smooth(method = "lm")+
   facet_wrap(~rs7, nrow = 3) +
   labs(title = "Marginal")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# doing other stuff
-
-
-rs7_len <- sort(unique(try_imp_cal_1$rs7))
-try_mod_l <- list(NULL)
-
-for (item in rs7_len){
-  
-  try_mod_l[[item]] <- lmrob(grw_sh_total_aboveRet_m ~ 
-                               grw_p_total_total_r +
-                               rs7 + 
-                               hubdist100 + 
-                               com_ratio_pop09 +
-                               yg_work_sh09 +
-                               east_ger,
-                             data = subset(wide_df, rs7 == item), k.max = 300)
-                     
-
-}
-
-
-mod_rs7 <- function (x) 
-  lmrob(grw_sh_total_aboveRet_m ~ 
-          grw_p_total_total_r +
-          rs7 + 
-          hubdist100 + 
-          com_ratio_pop09 +
-          yg_work_sh09 +
-          east_ger, data = subset(wide_df, rs7 == x))
-
-
-
-y_test <- map(rs7_len, mod_rs7)
-
-
-sum_test <- lapply(y_test, summary)
-
-
-
-
-
-
-
-cor(wide_df$grw_p_total_total_r, wide_df$grw_sh_total_aboveRet_total)
-
-
-# some plots for testing
-
-wide_df %>% 
-  filter(
-         grw_sh_total_aboveRet_total < 60) %>% 
-  ggplot(aes(x =  grw_sh_total_aboveRet_m , y =  grw_sh_total_aboveRet_total)) +
-  geom_point() +
-  geom_smooth(method = "lm")+
-  facet_wrap(~rs7, nrow = 3)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# Models with employment change as dependent variable ---------------------
-
-
-
-mod_base <- lmrob(grw_p_total_total_r ~ 
-                    rs7 + 
-                    hubdist100 + 
-                    com_ratio_pop09 +
-                    yg_work_sh09 +
-                    east_ger,
-                  data = wide_df, fast.s.large.n = Inf)
-
-summary(mod_base)
-
-mod_A1 <- lmrob(grw_p_total_total_r ~ 
-                  grw_sh_total_aboveRet_r +
-                  rs7 +
-                  hubdist100 + 
-                  com_ratio_pop09 +
-                  yg_work_sh09 +
-                  east_ger,
-                data = wide_df, k.max	= 300)
-
-summary(mod_A1)
-
-mod_A2 <- lmrob(grw_p_total_total_r ~ 
-                  grw_sh_total_aboveRet_r +
-                  grw_sh_total_aboveRet_m +
-                  rs7 + 
-                  hubdist100 + 
-                  com_ratio_pop09 +
-                  yg_work_sh09 +
-                  east_ger,
-                data = wide_df)
-
-summary(mod_A2)
-
-
-
-model_labels <- c("Base", "A1", "A2")
-
-
-screenreg(l = list(mod_base, mod_A1 ,mod_A2),
-          custom.model.names = model_labels,
-          include.nobs = T,
-          dcolumn = T,
-          digits = 3
-)
-
-
-
 
 
 

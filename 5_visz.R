@@ -130,41 +130,42 @@ east_west_cols <- c('East' = "#DABF7F",
 p2 <- imp_cal_5 %>% 
   ungroup() %>% 
   filter(age == "aboveRet", year == 2019, sex == "total", type != "total") %>%
-  ggplot(aes(x = forcats::fct_rev(gen_rs7),
+  ggplot(aes(x = gen_rs7,
              y = grw_sh, 
-             fill = forcats::fct_rev(east_ger))) +
+             fill = east_ger)) +
   scale_y_continuous(limits = c(-10, 10))+
   geom_boxplot() +
   facet_wrap(~type, labeller = emp_type_label) +
   scale_fill_manual(values = east_west_cols, labels = c("East", "West"))+
   labs(x = "Spatial categoy",
        y = "Change in share of post retirement workers") +
-  coord_flip() +
   theme(legend.position = "bottom",
-        strip.text.x = element_text(size = 18))
+        strip.text.x = element_text(size = 16),
+        axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
 p2
 
-ggsave("p2_try.pdf", width = 32, height = 18, units = "cm")
+ggsave("grw_sh_east_west_type.pdf", width = 32, height = 18, units = "cm")
 
 
 # Share of post retimret workers
 p3 <- imp_cal_5 %>% 
   ungroup() %>% 
-  filter(age == "aboveRet", year == 2019, sex == "total", type != "total") %>%
+  filter(age == "aboveRet", year == 2019, sex == "total", type == "total") %>%
   ggplot(aes(x = gen_rs7,
              y = share, 
              fill = east_ger)) +
-  scale_y_continuous(limits = c(0, 0.15))+
+  scale_y_continuous(limits = c(0, 0.2))+
   geom_boxplot() +
-  facet_wrap(~type, labeller = emp_type_label) +
+  #facet_wrap(~type, labeller = emp_type_label) +
   scale_fill_manual(values = east_west_cols, labels = c("East", "West"))+
   labs(x = "Spatial categoy",
        y = "Share of post retirement workers in %") +
-  coord_flip() +
   theme(legend.position = "bottom",
-        strip.text.x = element_text(size = 18))
+        strip.text.x = element_text(size = 16),
+        axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
 p3
 
+ggsave("sh_east_west_type.pdf", width = 32, height = 18, units = "cm")
 
 
 
@@ -177,23 +178,40 @@ male_female_cols <- c('men' = "#DABF7F",
 p4 <- imp_cal_5 %>% 
   ungroup() %>% 
   filter(age == "aboveRet", year == 2019, sex != "total", type != "total") %>%
-  ggplot(aes(x = forcats::fct_rev(gen_rs7),
+  ggplot(aes(x = gen_rs7,
              y = share, 
-             fill = forcats::fct_rev(sex))) +
-  scale_y_continuous(limits = c(-0.01, 0.12))+
+             fill = sex)) +
+  scale_y_continuous(limits = c(-0.01, 0.15))+
   geom_boxplot(outlier.size = 1) +
   facet_wrap(~type, labeller = emp_type_label) +
   scale_fill_manual(values = male_female_cols, labels = c("Men", "Women"))+
-  coord_flip()+
   labs(x = "Spatial categoy",
        y = "Share of post retirement workers %") +
   theme(legend.position = "bottom",
-        strip.text.x = element_text(size = 16))
+        strip.text.x = element_text(size = 16),
+        axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
 p4
 
 
 ggsave("share_aboveRet_Sex.pdf", width = 32, height = 18, units = "cm")
 
+
+p5 <- imp_cal_5 %>% 
+  ungroup() %>% 
+  filter(age == "aboveRet", year == 2019, sex != "total", type != "total") %>%
+  ggplot(aes(x = gen_rs7,
+             y = grw_sh, 
+             fill = sex)) +
+  scale_y_continuous(limits = c(-7, 7))+
+  geom_boxplot(outlier.size = 1) +
+  facet_wrap(~type, labeller = emp_type_label) +
+  scale_fill_manual(values = male_female_cols, labels = c("Men", "Women"))+
+  labs(x = "Spatial categoy",
+       y = "Change in share of post retirement workers %") +
+  theme(legend.position = "bottom",
+        strip.text.x = element_text(size = 16),
+        axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+p5
 
 
 
@@ -208,18 +226,18 @@ male_female_cols <- c('men' = "#DABF7F",
 p5 <- imp_cal_5 %>% 
   ungroup() %>% 
   filter(age == "aboveRet", year == 2019, sex != "total", type == "m") %>%
-  ggplot(aes(x = forcats::fct_rev(gen_rs7),
+  ggplot(aes(x = gen_rs7,
              y = share, 
-             fill = forcats::fct_rev(sex))) +
+             fill = sex)) +
   scale_y_continuous(limits = c(-0.01, 0.12))+
   geom_boxplot(outlier.size = 1) +
   facet_wrap(~east_ger) +
   scale_fill_manual(values = male_female_cols, labels = c("Men", "Women"))+
-  coord_flip()+
   labs(x = "Spatial categoy",
        y = "Share of post retirement workers %") +
   theme(legend.position = "bottom",
-        strip.text.x = element_text(size = 16))
+        strip.text.x = element_text(size = 16),
+        axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
 p5
 
 
@@ -228,28 +246,6 @@ ggsave("sh_aboveRet_Sex_East.pdf", width = 32, height = 18, units = "cm")
 
 
 
-
-
-
-
-
-
-p5 <- imp_cal_5 %>% 
-  ungroup() %>% 
-  filter(age == "aboveRet", year == 2019, sex != "total", type == "m") %>%
-  ggplot(aes(x = forcats::fct_rev(gen_rs7),
-             y = share, 
-             fill = forcats::fct_rev(east_ger))) +
-  scale_y_continuous(limits = c(-0.01, 0.12))+
-  geom_boxplot(outlier.size = 1) +
-  facet_wrap(~sex) +
-  #scale_fill_manual(values = male_female_cols, labels = c("Men", "Women"))+
-  coord_flip()+
-  labs(x = "Spatial categoy",
-       y = "Share of post retirement workers %") +
-  theme(legend.position = "bottom",
-        strip.text.x = element_text(size = 16))
-p5
 
 
 

@@ -1,6 +1,6 @@
 
 # Title: EDSD Thesis 2021/22
-# Topic: Imputing dataset with Random Forest Imputation
+# Topic: Performing Robust regression
 # Date: 13/07/2022
 
 # In this script I am applying my regression analysis to my dataset. Following the mice approach
@@ -112,7 +112,7 @@ for (i in 1:10){
 df_models_names  <-  paste0("df_model_", 1:10)
 df_models <- setNames(df_models, df_models_names)
 
-
+rm(df_imps_calc)
 
 # Model Total Retirement Employment ---------------------------------------
 
@@ -201,7 +201,7 @@ coef_A_labels <- c('Intercept' ,
                  'Small town, rural', "West Germany", "Distance to large city",
                  'Comuter Ratio 2009', 'Share of young workers', 'Employment Growth')
 
-screenreg(l = list(model_base_texreg, model_A1_texreg, model_A2_texreg),
+texreg(l = list(model_base_texreg, model_A1_texreg, model_A2_texreg),
           custom.model.names = model_A_labels,
           custom.coef.names = coef_A_labels,
           custom.gof.rows = gofs_A,
@@ -282,7 +282,7 @@ coef_B_labels <- c('Intercept' ,
                    'Small town, rural', "West Germany", "Distance to large city",
                    'Comuter Ratio 2009', 'Share of young workers', 'Employment Growth')
 
-screenreg(l = list(model_marg_texreg, model_reg_texreg),
+texreg(l = list(model_marg_texreg, model_reg_texreg),
           custom.model.names = model_B_labels,
           custom.coef.names = coef_B_labels,
           custom.gof.rows = gofs_B,

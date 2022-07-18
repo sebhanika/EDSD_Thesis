@@ -127,22 +127,22 @@ ls_models_base <- lapply(df_models,
 
 ls_models_A1 <- lapply(df_models, 
                       function(x) lmrob(grw_sh_total_aboveRet_total ~ 
+                                          rs7 +
+                                          east_ger +
                                           hubdist100 + 
                                           com_ratio_pop09 +
-                                          yg_work_sh09 +
-                                          rs7 +
-                                          east_ger,
+                                          yg_work_sh09,
                                         data = x, k.max	= 300)
                     )
 
 
 ls_models_A2 <- lapply(df_models, 
                     function(x) lmrob(grw_sh_total_aboveRet_total ~ 
+                                        rs7 +
+                                        east_ger +
                                         hubdist100 + 
                                         com_ratio_pop09 +
                                         yg_work_sh09 +
-                                        rs7 +
-                                        east_ger+
                                         grw_p_total_total_r,
                                       data = x, k.max	= 300)
 )
@@ -203,7 +203,7 @@ coef_A_labels <- c('Intercept' ,
 
 texreg(l = list(model_base_texreg, model_A1_texreg, model_A2_texreg),
           custom.model.names = model_A_labels,
-          custom.coef.names = coef_A_labels,
+          #custom.coef.names = coef_A_labels,
           custom.gof.rows = gofs_A,
           include.nobs = F,
           dcolumn = T,
@@ -215,13 +215,13 @@ texreg(l = list(model_base_texreg, model_A1_texreg, model_A2_texreg),
 
 ls_mod_marg <- lapply(df_models, 
                          function(x) lmrob(grw_sh_total_aboveRet_m ~ 
+                                             rs7 +
+                                             east_ger +
                                              hubdist100 + 
                                              com_ratio_pop09 +
                                              yg_work_sh09 +
-                                             rs7 +
-                                             east_ger+
                                              grw_p_total_total_r,
-                                           data = x, k.max	= 300)
+                                           data = x, k.max	= 300, fast.s.large.n = Inf)
                       )
 
 # Pool results and summarize for base model
@@ -244,11 +244,11 @@ model_marg_texreg <- createTexreg(
 
 ls_mod_reg <- lapply(df_models, 
                       function(x) lmrob(grw_sh_total_aboveRet_r ~ 
+                                          rs7 +
+                                          east_ger +
                                           hubdist100 + 
                                           com_ratio_pop09 +
                                           yg_work_sh09 +
-                                          rs7 +
-                                          east_ger+
                                           grw_p_total_total_r,
                                         data = x, k.max	= 300)
 )
@@ -270,6 +270,8 @@ model_reg_texreg <- createTexreg(
 
 ### Combine models in table
 
+nobs.models <- nrow(drop_na(df_models[[1]]))
+
 # extract NObs and rsquares from the models
 gofs_B <- list("Num. Obs." = c(nobs.models, nobs.models),
                "R-squared" = c(models_marg_r2[1], models_reg_r2[1]))
@@ -280,7 +282,7 @@ coef_B_labels <- c('Intercept' ,
                    'Medium-sized city, urban',
                    'Small town, urban', 'Central City, rural','Medium-sized city, rural',
                    'Small town, rural', "West Germany", "Distance to large city",
-                   'Comuter Ratio 2009', 'Share of young workers', 'Employment Growth')
+                   'Commuter Ratio in 2009', 'Share of young workers in 2009', 'Employment Growth')
 
 texreg(l = list(model_marg_texreg, model_reg_texreg),
           custom.model.names = model_B_labels,

@@ -1,0 +1,91 @@
+---
+title: "EDSD Thesis Presentation"
+author: "Sebastian Hanika"
+format: 
+    revealjs:
+      logo: logo_ced.png
+      self-contained: true
+editor: visual
+footer: "EDSD Thesis - Sebastian Hanika"
+---
+
+## Introduction
+
+-   "Cities are young and countrysides are old"
+-   Discussion on old-age security
+-   Increasing post-retirement employment in Germany
+-   Debate dominated by economics
+
+## Background - Demography
+
+-   Post-retirement employment as marginal employment
+-   Males more likely to work in old-age
+-   Complex relationship with health, education and social factors
+-   Working in old-age is not easy
+-   Depends on local labor market conditions
+-   East-West Differences
+
+## Background - Spatial concepts
+
+-   Urban-rural continuum
+-   Urban hierarchy
+-   SMSTs in Functional-spatial context
+
+::: notes
+These are my notes for theory
+:::
+
+## Research Interest
+
+-   How does post-retirement employment vary along the urban-rural gradient in Germany?
+
+## Methodology
+
+::: columns
+::: {.column width="40%"}
+-   Combined Regional Statistical Spatial Type (Regiostar7)
+-   Modified to 6 categories along the urban -- rural gradient
+:::
+:::
+
+![](Map_Regiostar7_small.png){.absolute top="0" right="0" width="441" height="623.7"}
+
+## Methodology
+
+Data
+
+-   Municipal employment data by age and sex (2009 to 2019)
+
+-   *MICE Random Forest Imputation*
+
+## Methodology
+
+-   Variabels and models
+
+## Results
+
+-   Descriptive Stats
+
+## Results
+
+-   Model 1
+
+## Results
+
+-   Model 2
+
+## Results
+
+-   Model 3
+
+## Discussion
+
+-   Interpretation
+
+## Discussion
+
+-   Limitations
+
+## Conculsion
+
+-   What?

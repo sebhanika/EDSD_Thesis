@@ -1,6 +1,7 @@
 ---
 title: "Post-retirement employment along the urban-rural gradient"
 author: "Sebastian Hanika"
+date: 25/07/2022
 format:
     revealjs:
       theme: default
@@ -19,20 +20,31 @@ footer: "EDSD Thesis - Sebastian Hanika"
 -   "Cities are young and countrysides are old"
 -   Urban-rural dichotomy is ineffective
 
+::: notes
+Other human-geography research
+Therefore wanted to apply it to post-retirement employment
+:::
+
 ## Background
 
 -   Regular & marginal post-retirement employment 
 -   Males are more likely to work in old-age
 -   Complex relationships with health, education & social factors
--   Working in old-age is hard
--   Labor market policies & conditions
+-   *Working in old-age is hard*
+-   Influence of labor market policies & conditions
+
+::: notes
+Marginal = 450euro jobs, auxiliary workers
+Age discrimination + mobility + job availability
+Many of these factors vary across space
+:::
 
 ## Background
 
 -   Urban-rural continuum
 -   Urban hierarchy
--   SMSTs in functional-spatial context
--   East-West differences in Germany
+-   Small and medium sized towns in a functional-spatial context
+-   East-West disparities in Germany
 
 . . .
 
@@ -42,7 +54,14 @@ footer: "EDSD Thesis - Sebastian Hanika"
 
 
 ::: notes
-These are my notes for theory
+
+Spectrium/gradient/contiuum
+focus and concetration of services(LLMs)
+not only size but context matters
+
+Two sub-research questions
+- How does the functional-spatial context of settlements influence post-retirement employment?
+- What are the differences between former East Germany and West Germany in the spatial distribution of post-retirement employment?
 :::
 
 ## Methodology
@@ -67,17 +86,26 @@ Data:
 -   Missing values due to anonymization
 -   *MICE Random Forest Imputation*
 
+::: notes
+excluded very small municipalities, errors and strange behavior
+Missing not at random, different approach
+Imputation and analysis replicated 10times
+based on Random Forest, coefficients are pooled in the end
+can handle more complex relationships and Missing not at random
+:::
+
+
 ## Methodology
 
 ::: panel-tabset
 ### Description
 
-Dependent Variable:
+Dependent Variables:
 
 -   $\Delta$ share of workers past-retirment age
 -   Split up into regular and marginal employment
 
-Independent Variable:
+Independent Variables:
 
 -   Regional classification & East-West Germany
 -   Control variables
@@ -111,17 +139,22 @@ Descriptive:
 
 *Share of post retirement workers in spatial types and East-West Germany in 2019* ![](sh_east_west_type.png){.absolute bottom="25" left="0" width="1000 " height="525"}
 
+:::notes
+Share not change
+higher share in West germany, across all categories
+:::
+
 ## Results {.smaller}
 
 *Change in the share of post retirement workers in spatial types and East-West*
 
 ![](grw_sh_east_west_type.png){.absolute bottom="25" left="0" width="1000 " height="525"}
 
-## Results {.smaller}
-
-*Change in the share of post retirement workers in spatial types and East-West*
-
-![](share_aboveRet_Sex.png){.absolute bottom="25" left="0" width="1000 " height="525"}
+:::notes
+Marginal employment we can see differences
+not very much for regular employment 
+East is catching up
+:::
 
 ## Results {.scrollable}
 
@@ -129,8 +162,8 @@ Descriptive:
 ### Description
 
 -   *Small towns* are strongly associated with change in post-retirement employment
--   *Central cities* are exhibt a weaker realtionship
--   Commuting has a weak negative relationship
+-   *Central cities* are exhibit a weaker relationship
+-   Commuting ratio has a weak negative relationship
 -   Employment growth as an important variable
 
 ### Regression 
@@ -254,13 +287,13 @@ Descriptive:
 - Labor market size alone cannot explain differences
 - Centrality functions seems to be a factor
 - Medium-sized cities are in between the extremes
-- However weak relationship with commuting and location
+- However, only weak relationship with commuting and location
 
 ## Discussion
 
 *East-West differences*
 
-- Stronger prevalence in West German municipalities
+- Stronger prevalence of post-retirement employment in West German municipalities
 - Higher increases in East German municipalities
 - Possible factors might be weaker economic development & structure
 
@@ -268,7 +301,7 @@ Descriptive:
 
 Limitations:
 
-- Not possible to establish causality
+- Dependent variable effected by different dynamics
 - Omitted variable bias (education & income)
 - Lack of nuance in distance variable
 
@@ -277,4 +310,4 @@ Limitations:
 - Marginal post-retirement employment varies significantly across space
 - Catching up effect in East Germany
 - Spatial context matters
-- Central cities in rural settings are intersting for future research
+- Central cities in rural settings are interesting for future research

@@ -23,7 +23,7 @@ basic_theme <- theme_set(theme_bw() +
                                  axis.line = element_line(colour = "black"),
                                  axis.title = element_text(size=16, color = "grey30"),
                                  axis.text = element_text(size=16, color = "grey30"),
-                                 legend.text = element_text(size=16, color = "grey30"),
+                                 legend.text = element_text(size=18, color = "grey30"),
                                  legend.title=element_blank()))
 
 

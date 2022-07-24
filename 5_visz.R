@@ -68,8 +68,6 @@ wide_df_5 <- imp_cal_5 %>%
               names_from = c('sex', 'age', 'type')) %>%
   left_join(imp_calc2009, by = 'muni_key')
 
-colnames(wide_df_5)
-
 
 # Summary_stat ------------------------------------------------------------
 
@@ -114,9 +112,6 @@ group_whole <- summary_table(dplyr::group_by(wide_df_5, rs7), our_summary1)
 group_whole
 
 
-
-
-
 # Boxplots East-West ------------------------------------------------------
 
 emp_type_label <-  as_labeller(c(`m` = "Marginal", `r` = "Regular"))
@@ -124,8 +119,6 @@ emp_type_label <-  as_labeller(c(`m` = "Marginal", `r` = "Regular"))
 east_west_cols <- c('East' = "#DABF7F", 
                     'West' = "#01665E") 
 
-
-#'usa' = "#01665E"
 # Change in share of post retimret workers
 p2 <- imp_cal_5 %>% 
   ungroup() %>% 
@@ -137,14 +130,15 @@ p2 <- imp_cal_5 %>%
   geom_boxplot() +
   facet_wrap(~type, labeller = emp_type_label) +
   scale_fill_manual(values = east_west_cols, labels = c("East", "West"))+
-  labs(x = "Spatial categoy",
+  labs(x = "Spatial category",
        y = "Change in share of post retirement workers") +
-  theme(legend.position = "bottom",
+  theme(legend.position = "right",
         strip.text.x = element_text(size = 16),
         axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
 p2
 
-ggsave("grw_sh_east_west_type.pdf", width = 32, height = 18, units = "cm")
+#ggsave("grw_sh_east_west_type.pdf", width = 32, height = 18, units = "cm")
+ggsave("presentation/grw_sh_east_west_type.png", width = 32, height = 18, units = "cm")
 
 
 # Share of post retimret workers
@@ -158,15 +152,16 @@ p3 <- imp_cal_5 %>%
   geom_boxplot() +
   #facet_wrap(~type, labeller = emp_type_label) +
   scale_fill_manual(values = east_west_cols, labels = c("East", "West"))+
-  labs(x = "Spatial categoy",
+  labs(x = "Spatial category",
        y = "Share of post retirement workers in %") +
-  theme(legend.position = "bottom",
+  theme(legend.position = "right",
         strip.text.x = element_text(size = 16),
         axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
 p3
 
-ggsave("sh_east_west_type.pdf", width = 32, height = 18, units = "cm")
+#ggsave("sh_east_west_type.pdf", width = 32, height = 18, units = "cm")
 
+ggsave("presentation/sh_east_west_type.png", width = 32, height = 18, units = "cm")
 
 
 
@@ -185,15 +180,15 @@ p4 <- imp_cal_5 %>%
   geom_boxplot(outlier.size = 1) +
   facet_wrap(~type, labeller = emp_type_label) +
   scale_fill_manual(values = male_female_cols, labels = c("Men", "Women"))+
-  labs(x = "Spatial categoy",
+  labs(x = "Spatial category",
        y = "Share of post retirement workers %") +
-  theme(legend.position = "bottom",
+  theme(legend.position = "right",
         strip.text.x = element_text(size = 16),
         axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
 p4
 
-
-ggsave("share_aboveRet_Sex.pdf", width = 32, height = 18, units = "cm")
+ggsave("presentation/share_aboveRet_Sex.png", width = 32, height = 18, units = "cm")
+#ggsave("share_aboveRet_Sex.pdf", width = 32, height = 18, units = "cm")
 
 
 p5 <- imp_cal_5 %>% 
@@ -206,7 +201,7 @@ p5 <- imp_cal_5 %>%
   geom_boxplot(outlier.size = 1) +
   facet_wrap(~type, labeller = emp_type_label) +
   scale_fill_manual(values = male_female_cols, labels = c("Men", "Women"))+
-  labs(x = "Spatial categoy",
+  labs(x = "Spatial category",
        y = "Change in share of post retirement workers %") +
   theme(legend.position = "bottom",
         strip.text.x = element_text(size = 16),
@@ -233,7 +228,7 @@ p5 <- imp_cal_5 %>%
   geom_boxplot(outlier.size = 1) +
   facet_wrap(~east_ger) +
   scale_fill_manual(values = male_female_cols, labels = c("Men", "Women"))+
-  labs(x = "Spatial categoy",
+  labs(x = "Spatial category",
        y = "Share of post retirement workers %") +
   theme(legend.position = "bottom",
         strip.text.x = element_text(size = 16),
@@ -241,7 +236,7 @@ p5 <- imp_cal_5 %>%
 p5
 
 
-ggsave("sh_aboveRet_Sex_East.pdf", width = 32, height = 18, units = "cm")
+#ggsave("sh_aboveRet_Sex_East.pdf", width = 32, height = 18, units = "cm")
 
 
 

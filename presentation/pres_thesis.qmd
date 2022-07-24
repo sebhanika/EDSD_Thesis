@@ -1,50 +1,58 @@
 ---
-title: "EDSD Thesis Presentation"
+title: "Post-retirement employment along the urban-rural gradient"
 author: "Sebastian Hanika"
-format: 
+format:
     revealjs:
+      theme: default
       logo: logo_ced.png
       self-contained: true
+      fig-cap-location: top
 editor: visual
 footer: "EDSD Thesis - Sebastian Hanika"
 ---
 
 ## Introduction
 
--   "Cities are young and countrysides are old"
 -   Discussion on old-age security
 -   Increasing post-retirement employment in Germany
 -   Debate dominated by economics
+-   "Cities are young and countrysides are old"
+-   Urban-rural dichotomy is ineffective
 
-## Background - Demography
+## Background
 
--   Post-retirement employment as marginal employment
--   Males more likely to work in old-age
--   Complex relationship with health, education and social factors
--   Working in old-age is not easy
--   Depends on local labor market conditions
--   East-West Differences
+-   Regular & marginal post-retirement employment 
+-   Males are more likely to work in old-age
+-   Complex relationships with health, education & social factors
+-   Working in old-age is hard
+-   Labor market policies & conditions
 
-## Background - Spatial concepts
+## Background
 
 -   Urban-rural continuum
 -   Urban hierarchy
--   SMSTs in Functional-spatial context
+-   SMSTs in functional-spatial context
+-   East-West differences in Germany
+
+. . .
+
+- Reasearch Question:
+
+*How does post-retirement employment vary along the urban-rural gradient in Germany?*
+
 
 ::: notes
 These are my notes for theory
 :::
 
-## Research Interest
-
--   How does post-retirement employment vary along the urban-rural gradient in Germany?
-
 ## Methodology
 
 ::: columns
 ::: {.column width="40%"}
+Spatial classifications:
+
 -   Combined Regional Statistical Spatial Type (Regiostar7)
--   Modified to 6 categories along the urban -- rural gradient
+-   Modified to 6 categories along the urban - rural gradient
 :::
 :::
 
@@ -52,40 +60,221 @@ These are my notes for theory
 
 ## Methodology
 
-Data
+Data:
 
--   Municipal employment data by age and sex (2009 to 2019)
-
+-   Municipal employment data by age, sex and type (2009 to 2019)
+-   Includes 6855 municipalities
+-   Missing values due to anonymization
 -   *MICE Random Forest Imputation*
 
 ## Methodology
 
--   Variabels and models
+::: panel-tabset
+### Description
+
+Dependent Variable:
+
+-   $\Delta$ share of workers past-retirment age
+-   Split up into regular and marginal employment
+
+Independent Variable:
+
+-   Regional classification & East-West Germany
+-   Control variables
+
+### Table
+
+| Variable                            | Type        |
+|-------------------------------------|-------------|
+| Regiostar7 Classification           | Categorical |
+| East-West Germany                   | Categorical |
+| Distance to large labor market (km) | Continuous  |
+| Commuter ratio of in 2009           | Continuous  |
+| Share of young workers in 2009      | Continuous  |
+| Employment growth 2009 to 2019      | Continuous  |
+:::
 
 ## Results
 
--   Descriptive Stats
+::: columns
+::: {.column width="50%"}
+Descriptive:
 
-## Results
+-   East Germany has higher growth rates in post-retirement employment
+-   Still higher post-retirement employment rates in West-Germany
+:::
+:::
 
--   Model 1
+![](Map_above_ret_small.png){.absolute top="0" right="0" width="441" height="623.7"}
 
-## Results
+## Results {.smaller}
 
--   Model 2
+*Share of post retirement workers in spatial types and East-West Germany in 2019* ![](sh_east_west_type.png){.absolute bottom="25" left="0" width="1000 " height="525"}
 
-## Results
+## Results {.smaller}
 
--   Model 3
+*Change in the share of post retirement workers in spatial types and East-West*
+
+![](grw_sh_east_west_type.png){.absolute bottom="25" left="0" width="1000 " height="525"}
+
+## Results {.smaller}
+
+*Change in the share of post retirement workers in spatial types and East-West*
+
+![](share_aboveRet_Sex.png){.absolute bottom="25" left="0" width="1000 " height="525"}
+
+## Results {.scrollable}
+
+::: panel-tabset
+### Description
+
+-   *Small towns* are strongly associated with change in post-retirement employment
+-   *Central cities* are exhibt a weaker realtionship
+-   Commuting has a weak negative relationship
+-   Employment growth as an important variable
+
+### Regression 
++--------------------------------+-----------------+----------------+----------------+
+| Variable                       | Model A0        | Model A1       | Model A2       |
++================================+=================+================+================+
+| Intercept                      | 1.277$^{***}$   | 1.500$^{***}$  | 1.324$^{***}$  |
+|                                | (0.065)         | (0.116)        | (0.099)        |
++--------------------------------+-----------------+----------------+----------------+
+| Medium-sized city, urban       | 0.306$^{***}$   | 0.117          | 0.246$^{***}$  |
+|                                | (0.056)         | (0.064)        | (0.060)        |
++--------------------------------+-----------------+----------------+----------------+
+| Small town, urban              | 0.554$^{***}$   | 0.320$^{**}$   | 0.459$^{***}$  |
+|                                | (0.093)         | (0.097)        | (0.087)        |
++--------------------------------+-----------------+----------------+----------------+
+| Central City, rural            | 0.265$^{**}$    | 0.206          | 0.195$^{*}$    |
+|                                | (0.083)         | (0.105)        | (0.095)        |
++--------------------------------+-----------------+----------------+----------------+
+| Medium-sized city, rural       | 0.438$^{***}$   | 0.272$^{**}$   | 0.271$^{***}$  |
+|                                | (0.061)         | (0.084)        | (0.078)        |
++--------------------------------+-----------------+----------------+----------------+
+| Small town, rural              | 0.728$^{***}$   | 0.491$^{***}$  | 0.476$^{***}$  |
+|                                | (0.061)         | (0.087)        | (0.082)        |
++--------------------------------+-----------------+----------------+----------------+
+| West Germany                   | -0.852$^{***}$  | -0.791$^{***}$ | -0.396$^{***}$ |
+|                                | (0.056)         | (0.060)        | (0.056)        |
++--------------------------------+-----------------+----------------+----------------+
+| Distance to large city         |                 | 0.001          | 0.001          |
+|                                |                 | (0.001)        | (0.001)        |
++--------------------------------+-----------------+----------------+----------------+
+| Commuter Ratio in 2009         |                 | -0.006$^{***}$ | -0.009$^{***}$ |
+|                                |                 | (0.001)        | (0.001)        |
++--------------------------------+-----------------+----------------+----------------+
+| Share of young workers in 2009 |                 | -1.453         | 1.859$^{*}$    |
+|                                |                 | (1.053)        | (0.892)        |
++--------------------------------+-----------------+----------------+----------------+
+| Employment Growth              |                 |                | -0.027$^{***}$ |
+|                                |                 |                | (0.002)        |
++--------------------------------+-----------------+----------------+----------------+
+| Observations                   | 6855            | 6855           | 6855           |
++--------------------------------+-----------------+----------------+----------------+
+| R$^{2}$                        | 0.056           | 0.063          | 0.248          |
++--------------------------------+-----------------+----------------+----------------+
+| Note:                          | $^{***}p<0.001$ | $^{**}p<0.01$  | $^{*}p<0.05$   |
++--------------------------------+-----------------+----------------+----------------+
+: {tbl-colwidths="[40,20,20,20]"}
+:::
+
+::: footer
+:::
+
+
+
+## Results {.scrollable}
+
+
+::: panel-tabset
+### Description
+
+-   Splitting up marginal and regular employment
+-   Trends only hold for marginal employment
+-   Regular post-retirement employment cannot be realted to spatial factors 
+
+### Regression 
+
++--------------------------------+---------------------+--------------------+
+| Variable                       | Marginal employment | Regular employment |
++================================+=====================+====================+
+| Intercept                      | 0.992$^{***}$       | 0.406$^{***}$      |
+|                                | (0.087)             | (0.031)            |
++--------------------------------+---------------------+--------------------+
+| Medium-sized city, urban       | 0.260$^{***}$       | 0.050$^{**}$       |
+|                                | (0.053)             | (0.018)            |
++--------------------------------+---------------------+--------------------+
+| Small town, urban              | 0.463$^{***}$       | 0.002\             |
+|                                | (0.075)             | (0.028)            |
++--------------------------------+---------------------+--------------------+
+| Central City, rural            | 0.193$^{*}$         | 0.038\             |
+|                                | (0.085)             | (0.033)            |
++--------------------------------+---------------------+--------------------+
+| Medium-sized city, rural       | 0.316$^{***}$       | 0.027\             |
+|                                | (0.068)             | (0.026)            |
++--------------------------------+---------------------+--------------------+
+| Small town, rural              | 0.497$^{***}$       | 0.009\             |
+|                                | (0.071)             | (0.027)            |
++--------------------------------+---------------------+--------------------+
+| West Germany                   | -0.416$^{***}$      | 0.022\             |
+|                                | (0.050)             | (0.018)            |
++--------------------------------+---------------------+--------------------+
+| Distance to large city         | 0.001\              | 0.000\             |
+|                                | (0.001)             | (0.000)            |
++--------------------------------+---------------------+--------------------+
+| Commuter Ratio in 2009         | -0.006$^{***}$      | -0.001$^{*}$       |
+|                                | (0.001)             | (0.000)            |
++--------------------------------+---------------------+--------------------+
+| Share of young workers in 2009 | 0.863\              | -0.349             |
+|                                | (0.754)             |   (0.255)          |
++--------------------------------+---------------------+--------------------+
+| Employment Growth              | -0.024$^{***}$      | -0.001$^{*}$       |
+|                                | (0.002)             | (0.000)            |
++--------------------------------+---------------------+--------------------+
+| Observations                   | 6855                | 6855               |
++--------------------------------+---------------------+--------------------+
+| R$^{2}$                        | 0.251               | 0.011              |
++--------------------------------+---------------------+--------------------+
+| Note:    $^{***}p<0.001$       | $^{**}p<0.01$       |$^{*}p<0.05$        |
++--------------------------------+---------------------+--------------------+
+: {tbl-colwidths="[50,25,25]"}
+
+:::
+
+::: footer
+:::
+
+
 
 ## Discussion
 
--   Interpretation
+*Functional-spatial context*
+
+- Labor market size alone cannot explain differences
+- Centrality functions seems to be a factor
+- Medium-sized cities are in between the extremes
+- However weak relationship with commuting and location
 
 ## Discussion
 
--   Limitations
+*East-West differences*
 
-## Conculsion
+- Stronger prevalence in West German municipalities
+- Higher increases in East German municipalities
+- Possible factors might be weaker economic development & structure
 
--   What?
+## Discussion
+
+Limitations:
+
+- Not possible to establish causality
+- Omitted variable bias (education & income)
+- Lack of nuance in distance variable
+
+## Conclusion
+
+- Marginal post-retirement employment varies significantly across space
+- Catching up effect in East Germany
+- Spatial context matters
+- Central cities in rural settings are intersting for future research
